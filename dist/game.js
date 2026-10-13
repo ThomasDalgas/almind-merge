@@ -81,7 +81,7 @@ async function tileSound(tier,force=false){
   if(!soundOn&&!force)return;if(tier>=7&&!force){celebrationSound(tier-6);return;}ensureAudio();if(!audioCtx)return;
   const now=audioCtx.currentTime;if(!force&&now-lastSound<.065)return;lastSound=now;
   const tile=tiles[tier];
-  const sound=tile.sound||(tier===1?'assets/silas-merge.m4a':null);
+  const sound=tile.sound||({1:'assets/silas-merge.m4a',3:'assets/elias-merge.m4a'}[tier]??null);
   if(sound){
     try{
       let buffer=audioBuffers.get(sound);
