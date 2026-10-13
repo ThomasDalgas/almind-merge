@@ -1,0 +1,8 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {createRound,dropRound,mergeRound,nextTier,mergeTier,VALUES,advanceDanger} from '../dist/rules.js';
+test('Two drops plus a merge score 8; duplicate calls are prevented by the physics owner',()=>{const r=createRound();assert.equal(dropRound(r,0),0);assert.equal(dropRound(r,.5),0);assert.equal(r.score,4);assert.equal(mergeRound(r,0,0),1);assert.equal(r.score,8);});
+test('First four drops are tier zero, then queued random tier',()=>{const r=createRound();const result=[];for(let i=0;i<5;i++)result.push(dropRound(r,i,()=>.99));assert.deepEqual(result,[0,0,0,0,2]);});
+test('Drop cooldown does not change score, count or preview',()=>{const r=createRound();dropRound(r,1);const copy={...r};assert.equal(dropRound(r,1.49),null);assert.deepEqual(r,copy);assert.equal(dropRound(r,1.5),0);});
+test('Random generation upper bound remains exclusive and capped',()=>{assert.equal(nextTier(3,0,()=>.999),2);assert.equal(nextTier(3,4,()=>.999),3);assert.equal(nextTier(3,11,()=>.999),4);assert.equal(nextTier(2,11,()=>.999),0);});
+test('Svend is terminal; two Helle create Svend',()=>{const r=createRound();assert.equal(mergeRound(r,9,9),10);assert.equal(r.score,2048);assert.equal(mergeRound(r,10,10),null);assert.equal(r.score,2048);assert.equal(mergeTier(11,11),null);assert.equal(VALUES.at(-1),2048);});
+test('Danger timer must be continuous',()=>{assert.ok(Math.abs(advanceDanger(4.8,true,.1)-4.9)<1e-10);assert.equal(advanceDanger(4.8,false,.1),0);assert.equal(advanceDanger(0,true,.1),.1);});
