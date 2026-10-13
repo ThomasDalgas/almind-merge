@@ -1,5 +1,5 @@
 import {VALUES,TOP_WAIT,createRound,dropRound,mergeRound,advanceDanger} from './rules.js';
-import {tiles,defaultTiles,loadTheme,saveTheme,validatePack,replaceTiles,getImage,clearImageCache,drawTile,tileOutline,tileRadius,preloadImages} from './theme.js';
+import {tiles,drawTile,tileOutline,tileRadius,preloadImages} from './theme.js';
 const $=s=>document.querySelector(s);
 const canvas=$('#game'),ctx=canvas.getContext('2d');
 const W=440,H=620,LEFT=24,RIGHT=416,FLOOR=593,TOP=128,SPAWN=66;
@@ -20,7 +20,7 @@ const wallOptions={isStatic:true,friction:.45,restitution:0};
 const walls=[Bodies.rectangle(LEFT-15,H/2,30,H*3,wallOptions),Bodies.rectangle(RIGHT+15,H/2,30,H*3,wallOptions),Bodies.rectangle(W/2,FLOOR+20,W,40,wallOptions)];
 Composite.add(engine.world,walls);
 let round=createRound(),bodies=[],pending=[],particles=[],floats=[],mode='ready',time=0,aim=W/2,dragging=false,keys=new Set(),best=0,lastSound=-Infinity;
-let soundOn=true,audioCtx=null,saveQueue=Promise.resolve(),saveRevision=0,toastTimeout,dbReady=true;
+let soundOn=true,audioCtx=null,toastTimeout;
 let assetsReady=false;
 let activeAudio=[];const audioBuffers=new Map();
 try{best=Number(localStorage.getItem('merge-lab-best')||0)||0;soundOn=localStorage.getItem('merge-lab-sound')!=='off';}catch{}
@@ -96,7 +96,7 @@ function processMerges(){
 }
 function drop(){if(mode!=='playing'||document.querySelector('dialog[open]'))return;const tier=dropRound(round,time);if(tier===null)return;const r=tileRadius(tier),x=Math.max(LEFT+r+1,Math.min(RIGHT-r-1,aim));spawn(tier,x,SPAWN);scoreFloat(x,SPAWN+25,VALUES[tier]);dropSound();syncUI();setStatus('Find en makker. Skab noget større.');}
 function showOverlay(title,text,button,kicker='ET LILLE ØJEBLIK',foot='Træk for at sigte · Slip for at droppe'){
-  $('#overlay-title').textContent=title;$('#overlay-text').textContent=text;$('#play').textContent=button;$('#overlay-kicker').textContent=kicker;$('#overlay-foot').textContent=foot;$('#overlay').hidden=false;
+  $('.game-logo').hidden=true;$('#overlay-title').textContent=title;$('#overlay-text').textContent=text;$('#play').textContent=button;$('#overlay-kicker').textContent=kicker;$('#overlay-foot').textContent=foot;$('#overlay').hidden=false;
 }
 let savedPageY=0;
 function lockPlayScreen(lock){
@@ -157,40 +157,9 @@ $('#confirm-restart').onclick=()=>{resumeAfterDialog=false;$('#confirm').close()
 function buildFamily(){
   $('#family').replaceChildren();tiles.forEach((t,i)=>{const el=document.createElement('div');el.className='family-item';const c=document.createElement('canvas');c.width=100;c.height=95;c.setAttribute('aria-label',t.name);drawTile(previewContext(c,100,95),i,50,47,tileRadius(i,21+i*1.3),{number:false});const value=document.createElement('b');value.textContent=String(VALUES[i]);const name=document.createElement('span');name.textContent=t.name;el.append(c,value,name);$('#family').append(el);});syncUI();
 }
-function queueSave(){
-  const revision=++saveRevision;$('#save-status').textContent='Gemmer…';
-  saveQueue=saveQueue.catch(()=>{}).then(()=>saveTheme()).then(()=>{if(revision===saveRevision)$('#save-status').textContent='Gemt i denne browser ✓';}).catch(()=>{dbReady=false;$('#save-status').textContent='Ikke gemt — eksportér en kopi';toast('Browseren kunne ikke gemme ændringen. Eksportér dit briksæt.');});return saveQueue;
-}
-function fileData(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error('Filen kunne ikke læses.'));r.readAsDataURL(file);});}
-async function imageData(file){
-  if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>8000000)throw new Error('Vælg PNG, JPEG eller WebP på højst 8 MB.');
-  const bitmap=await createImageBitmap(file);const c=document.createElement('canvas'),scale=Math.min(1,512/Math.max(bitmap.width,bitmap.height));c.width=Math.max(1,Math.round(bitmap.width*scale));c.height=Math.max(1,Math.round(bitmap.height*scale));c.getContext('2d').drawImage(bitmap,0,0,c.width,c.height);bitmap.close();return c.toDataURL('image/png');
-}
-async function soundData(file){
-  if(file.size>8000000||(!file.type.startsWith('audio/')&&!/\.(mp3|wav|ogg|m4a)$/i.test(file.name)))throw new Error('Vælg en lydfil på højst 8 MB.');
-  ensureAudio();if(!audioCtx)throw new Error('Lyd er ikke understøttet i denne browser.');
-  const buffer=await audioCtx.decodeAudioData(await file.arrayBuffer());if(buffer.duration>8)throw new Error('Vælg en kort effekt på højst 8 sekunder.');
-  let data=await fileData(file);if(!data.startsWith('data:audio/'))data=data.replace(/^data:[^;]*;/,'data:audio/mpeg;');return data;
-}
-function renderEditor(){
-  $('#tile-editor').replaceChildren();tiles.forEach((tile,i)=>{
-    const card=document.createElement('section');card.className='edit-tile';
-    card.innerHTML=`<div class="tile-top"><canvas width="130" height="130"></canvas><div class="tile-fields"><label for="tile-name-${i}">TRIN ${i+1} · ${VALUES[i]} POINT</label><input id="tile-name-${i}" maxlength="30" aria-label="Navn på brik ${i+1}"></div></div><div class="tile-files"><label class="button file-button">＋ Billede<input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Billede til brik ${i+1}" data-asset="image"></label><label class="button file-button">♫ Lyd<input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" aria-label="Lyd til brik ${i+1}" data-asset="sound"></label></div><p class="tile-asset-status"></p><div class="tile-tools"><button class="listen">▷ Prøv lyd</button><button class="reset">Gendan brik</button></div>`;
-    const redraw=()=>{const c=card.querySelector('canvas'),g=previewContext(c,130,130);drawTile(g,i,65,65,59);card.querySelector('.tile-asset-status').textContent=`${tiles[i].image?'Eget billede':'Original figur'} · ${tiles[i].sound?'Egen lyd':'Spillets tone'}`;};
-    const input=card.querySelector('input[maxlength]');input.value=tile.name;input.onchange=()=>{tiles[i].name=input.value.trim()||defaultTiles()[i].name;input.value=tiles[i].name;queueSave();buildFamily();};
-    card.querySelectorAll('input[data-asset]').forEach(input=>input.onchange=async()=>{const file=input.files?.[0];if(!file)return;input.disabled=true;try{const asset=input.dataset.asset;const data=asset==='image'?await imageData(file):await soundData(file);if(asset==='image')await getImage(data);const candidate=tiles.map((t,j)=>j===i?{...t,[asset]:data}:t);validatePack({format:'merge-lab-v2',tiles:candidate});tiles[i][asset]=data;if(asset==='image')refreshPhysics();await queueSave();redraw();buildFamily();toast('Brikken er opdateret.');}catch(err){toast(err.message||'Filen kunne ikke indlæses.');}finally{input.disabled=false;input.value='';}});
-    card.querySelector('.listen').onclick=()=>tileSound(i,true);card.querySelector('.reset').onclick=()=>{tiles[i]=defaultTiles()[i];refreshPhysics();input.value=tiles[i].name;queueSave();redraw();buildFamily();};
-    $('#tile-editor').append(card);redraw();
-  });
-}
-function workshop(){renderEditor();openDialog('workshop');}
-$('#workshop-open').onclick=workshop;
-$('#export-pack').onclick=()=>{const data=JSON.stringify({format:'merge-lab-v2',title:'Mit Almind-Merge-briksæt',tiles},null,2),url=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='almind-merge-briksaet.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Briksættet er eksporteret.');};
-$('#import-pack').onchange=async e=>{const input=e.target,file=input.files?.[0];if(!file)return;input.disabled=true;try{if(file.size>46000000)throw new Error('Filen er for stor. Maks. 46 MB.');const next=validatePack(JSON.parse(await file.text()));await saveQueue;await replaceTiles(next);refreshPhysics();audioBuffers.clear();renderEditor();buildFamily();$('#save-status').textContent='Briksæt importeret og gemt ✓';toast('Dit briksæt er klar.');}catch(err){toast(err instanceof SyntaxError?'Filen er ikke et gyldigt briksæt.':err.message||'Briksættet kunne ikke importeres.');}finally{input.disabled=false;input.value='';}};
 updateSoundButton();buildFamily();requestAnimationFrame(frame);
 $('#play').disabled=true;
 (async()=>{
-  try{await loadTheme();}catch{dbReady=false;$('#save-status').textContent='Lokal lagring utilgængelig — brug eksport';}
   try{await preloadImages();assetsReady=true;$('#play').disabled=false;buildFamily();}
   catch(err){toast(err.message||'Figurerne kunne ikke indlæses. Genindlæs siden.');}
 })();

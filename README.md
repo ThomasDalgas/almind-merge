@@ -6,11 +6,9 @@ Et selvstændigt HTML5 merge-spil med original canvas-grafik og genererede lyde.
 
 `npm start` og åbn http://localhost:4173. Ingen npm-installation eller build er nødvendig. `npm test` tester spillereglerne. Matter.js 0.20.0 er med som lokal MIT-licenseret fil.
 
-## Grafik og lyd
+## Figurer
 
-Åbn Brikværksted. Der er 11 trin. Upload PNG/JPEG/WebP (nedskaleres til maks. 512 px) og korte lydfiler på højst 8 sekunder / 8 MB. Fodbold er 2, Silas 4, Niklas 8, Elias 16 og Mor Tina 128. Den største sammenhængende silhuet i billedets alpha-kanal bliver til en forenklet konkav polygon, opdelt i konvekse dele med poly-decomp 0.3.0 (MIT). Gennemsigtige indhak bevares; lukkede huller og adskilte små øer ignoreres. Billeder uden alpha giver rektangler. Fysik og grafik roterer om samme massecentrum. Nye billeder opdaterer også eksisterende brikkers fysik. Navne og filer gemmes i IndexedDB i den pågældende browser. Rekord og lydindstilling gemmes i localStorage. Der er ingen server, konto eller leaderboard.
-
-Eksportér og importér et `merge-lab-v2` JSON-briksæt for at flytte grafikken og lyden mellem enheder. Nye sæt har 11 brikker. Ældre sæt med 12 brikker får automatisk en fodbold indsat først. Eksport indeholder dine egne filer som data-URL'er. En eksporteret fil kan senere indarbejdes som spillets standardtema i `theme.js`; publicering af personligt uploadede billeder sker ikke automatisk.
+Den offentlige udgave bruger familiens faste 11 figurer. Brikværksted og import/eksport er fjernet. Rekorder gemmes lokalt i browseren. Grafik og lyd kan ændres i kildekoden.
 
 ## Regler
 
@@ -35,4 +33,4 @@ Med den lokale server kørende: `node tests/browser.mjs` og `node tests/polygon-
 
 Spil: https://thomasdalgas.github.io/almind-merge/
 
-Push til main kører npm test og publicerer dist/ automatisk. Personlige briksæt og rekorder følger ikke automatisk med til et nyt domæne; brug eksport/import i figurværkstedet. Ældre briksæt tilpasses de nuværende 11 figurer.
+Push til main kører npm test og publicerer dist/ automatisk. Rekorder er lokale for browser og domæne.
