@@ -51,6 +51,7 @@ function removeAt(x,y){
  for(const b of bodies)Matter.Sleeping.set(b,false);burst(body.position.x,body.position.y,body.plugin.tier);cancelRemove();return true;
 }
 $("#shake").onclick=shake;$("#remove").onclick=()=>{if(mode!=="playing"||powers.remove<1)return;removing=!removing;dragging=false;syncPowers();if(removing)toast("Tryk på en brik for at fjerne den. Tryk Fjern igen for at annullere.");};
+let audioGeneration=0;
 let activeAudio=[];const audioBuffers=new Map();
 try{best=Number(localStorage.getItem('merge-lab-best')||0)||0;soundOn=localStorage.getItem('merge-lab-sound')!=='off';}catch{}
 const numberFormat=new Intl.NumberFormat('da-DK');
@@ -58,10 +59,10 @@ function toast(msg){clearTimeout(toastTimeout);$('#toast').textContent=msg;$('#t
 function setStatus(text){$('#status').replaceChildren();const i=document.createElement('i');$('#status').append(i,document.createTextNode(text));}
 function updateSoundButton(){const b=$('#sound');b.textContent=soundOn?'♫':'♪';b.style.opacity=soundOn?'1':'.45';b.setAttribute('aria-label',soundOn?'Slå lyd fra':'Slå lyd til');}
 function ensureAudio(){try{audioCtx??=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});}catch{}}
-function stopSounds(){for(const source of activeAudio){try{source.stop();}catch{}}activeAudio=[];}
+function stopSounds(){audioGeneration++;for(const source of activeAudio){try{source.stop();}catch{}}activeAudio=[];}
 // Short synthesized cartoon effects, sharing the game's mute and stop controls.
-function effectTone(frequency,endFrequency,delay,duration,volume,type='sine'){
- if(!soundOn)return;ensureAudio();if(!audioCtx)return;
+function effectTone(frequency,endFrequency,delay,duration,volume,type='sine',force=false){
+ if(!soundOn&&!force)return;ensureAudio();if(!audioCtx)return;
  const at=audioCtx.currentTime+delay,osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
  osc.type=type;osc.frequency.setValueAtTime(frequency,at);osc.frequency.exponentialRampToValueAtTime(endFrequency,at+duration);
  gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(volume,at+.012);gain.gain.exponentialRampToValueAtTime(.0001,at+duration);
@@ -73,12 +74,13 @@ function gameOverSound(){
  [330,277,220].forEach((f,i)=>effectTone(f,f*.72,i*.16,.23,.07,'triangle'));
  effectTone(150,58,.5,.42,.09,'triangle');effectTone(420,105,.63,.3,.04);
 }
-function celebrationSound(level){
- effectTone(190+level*35,42,0,.15+level*.025,.12);
- for(let i=0;i<level+1;i++)effectTone(523.25*Math.pow(2,i/4),660*Math.pow(2,i/4),.07+i*.075,.2,.035,'triangle');
+function celebrationSound(level,force=false){
+ effectTone(190+level*35,42,0,.15+level*.025,.12,'sine',force);
+ for(let i=0;i<level+1;i++)effectTone(523.25*Math.pow(2,i/4),660*Math.pow(2,i/4),.07+i*.075,.2,.035,'triangle',force);
 }
 async function tileSound(tier,force=false){
-  if(!soundOn&&!force)return;if(tier>=7&&!force){celebrationSound(tier-6);return;}ensureAudio();if(!audioCtx)return;
+  const generation=audioGeneration;
+  if(!soundOn&&!force)return;if(tier>=7){celebrationSound(tier-6,force);return;}ensureAudio();if(!audioCtx)return;
   const now=audioCtx.currentTime;if(!force&&now-lastSound<.065)return;lastSound=now;
   const tile=tiles[tier];
   const sound=tile.sound||({1:'assets/silas-merge.m4a',2:'assets/niklas-merge.m4a',3:'assets/elias-merge-v2.m4a',6:'assets/tina-merge.m4a'}[tier]??null);
@@ -86,13 +88,13 @@ async function tileSound(tier,force=false){
     try{
       let buffer=audioBuffers.get(sound);
       if(!buffer){const response=await fetch(sound);buffer=await audioCtx.decodeAudioData(await response.arrayBuffer());audioBuffers.set(sound,buffer);}
-      if(!force&&(mode!=='playing'||!soundOn))return;
+      if(generation!==audioGeneration||(force&&!$('#portrait').open)||(!force&&(mode!=='playing'||!soundOn)))return;
       if(activeAudio.length>=4){try{activeAudio.shift().stop();}catch{}}
       const source=audioCtx.createBufferSource();source.buffer=buffer;const gain=audioCtx.createGain();const at=audioCtx.currentTime,duration=Math.min(buffer.duration,8),fade=Math.min(.025,duration/3);gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(.6,at+fade);gain.gain.setValueAtTime(.6,at+duration-fade);gain.gain.linearRampToValueAtTime(0,at+duration);source.connect(gain).connect(audioCtx.destination);source.start(at);source.stop(at+duration);activeAudio.push(source);source.onended=()=>{activeAudio=activeAudio.filter(x=>x!==source);};
-    }catch{toast('Denne lyd kunne ikke afspilles. Prøv MP3 eller WAV.');}return;
+    }catch{if(generation!==audioGeneration)return;toast('Denne lyd kunne ikke afspilles. Prøv MP3 eller WAV.');}return;
   }
   const notes=[261.63,293.66,329.63,349.23,392,440,493.88,523.25,587.33,659.25,783.99,1046.5,1174.66];
-  for(let i=0;i<2;i++){const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type='sine';osc.frequency.value=notes[tier]*(i?1.5:1);gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(i?.025:.07,now+.015);gain.gain.exponentialRampToValueAtTime(.0001,now+.35);osc.connect(gain).connect(audioCtx.destination);osc.start(now);osc.stop(now+.36);}
+  for(let i=0;i<2;i++){const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type='sine';osc.frequency.value=notes[tier]*(i?1.5:1);gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(i?.025:.07,now+.015);gain.gain.exponentialRampToValueAtTime(.0001,now+.35);osc.connect(gain).connect(audioCtx.destination);osc.start(now);osc.stop(now+.36);activeAudio.push(osc);osc.onended=()=>{activeAudio=activeAudio.filter(s=>s!==osc);osc.disconnect();gain.disconnect();};}
 }
 function dropSound(){if(!soundOn)return;ensureAudio();if(!audioCtx)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain(),t=audioCtx.currentTime;o.frequency.setValueAtTime(190,t);o.frequency.exponentialRampToValueAtTime(85,t+.09);g.gain.setValueAtTime(.045,t);g.gain.exponentialRampToValueAtTime(.001,t+.1);o.connect(g).connect(audioCtx.destination);o.start(t);o.stop(t+.12);}
 function previewContext(c,w,h){
@@ -230,12 +232,13 @@ document.querySelectorAll('dialog').forEach(d=>d.addEventListener('close',()=>{s
 $('#how-open').onclick=()=>openDialog('how');$('#restart').onclick=()=>{if(round.drops>0&&mode!=='over')openDialog('confirm');else start();};
 $('#confirm-restart').onclick=()=>{resumeAfterDialog=false;$('#confirm').close();start();};
 const portrait=$('#portrait');
-let portraitBackdropDown=false;
+let portraitBackdropDown=false,portraitTier=null;
+$('#portrait-play').onclick=()=>{if(portraitTier===null||!portrait.open)return;stopSounds();tileSound(portraitTier,true);};
 const outsidePortrait=e=>{const r=portrait.getBoundingClientRect();return e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom;};
 portrait.addEventListener('pointerdown',e=>{portraitBackdropDown=outsidePortrait(e);});
 portrait.addEventListener('click',e=>{if(portraitBackdropDown&&outsidePortrait(e))portrait.close();portraitBackdropDown=false;});
 function buildFamily(){
-  $('#family').replaceChildren();tiles.forEach((t,i)=>{const el=document.createElement('button');el.type='button';el.className='family-item';el.setAttribute('aria-label',`Se ${t.name} i stor størrelse`);el.onclick=()=>{const img=$('#portrait-image');img.src=tileSource(i);img.alt=t.name;$('#portrait-name').textContent=t.name;$('#portrait-points').textContent=`${numberFormat.format(VALUES[i])} point`;openDialog('portrait');};const c=document.createElement('canvas');c.width=100;c.height=95;c.setAttribute('aria-label',t.name);drawTile(previewContext(c,100,95),i,50,47,tileRadius(i,21+i*1.3),{number:false});const value=document.createElement('b');value.textContent=String(VALUES[i]);const name=document.createElement('span');name.textContent=t.name;el.append(c,value,name);$('#family').append(el);});syncUI();
+  $('#family').replaceChildren();tiles.forEach((t,i)=>{const el=document.createElement('button');el.type='button';el.className='family-item';el.setAttribute('aria-label',`Se ${t.name} i stor størrelse`);el.onclick=()=>{stopSounds();portraitTier=i;$('#portrait-play').setAttribute('aria-label',`Afspil lyden til ${t.name}`);const img=$('#portrait-image');img.src=tileSource(i);img.alt=t.name;$('#portrait-name').textContent=t.name;$('#portrait-points').textContent=`${numberFormat.format(VALUES[i])} point`;openDialog('portrait');};const c=document.createElement('canvas');c.width=100;c.height=95;c.setAttribute('aria-label',t.name);drawTile(previewContext(c,100,95),i,50,47,tileRadius(i,21+i*1.3),{number:false});const value=document.createElement('b');value.textContent=String(VALUES[i]);const name=document.createElement('span');name.textContent=t.name;el.append(c,value,name);$('#family').append(el);});syncUI();
 }
 updateSoundButton();buildFamily();requestAnimationFrame(frame);
 $('#play').disabled=true;
