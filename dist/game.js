@@ -54,9 +54,10 @@ async function tileSound(tier,force=false){
   if(!soundOn&&!force)return;ensureAudio();if(!audioCtx)return;
   const now=audioCtx.currentTime;if(!force&&now-lastSound<.065)return;lastSound=now;
   const tile=tiles[tier];
-  if(tile.sound){
+  const sound=tile.sound||(tier===1?'assets/silas-merge.m4a':null);
+  if(sound){
     try{
-      const sound=tile.sound;let buffer=audioBuffers.get(sound);
+      let buffer=audioBuffers.get(sound);
       if(!buffer){const response=await fetch(sound);buffer=await audioCtx.decodeAudioData(await response.arrayBuffer());audioBuffers.set(sound,buffer);}
       if(!force&&(mode!=='playing'||!soundOn))return;
       if(activeAudio.length>=4){try{activeAudio.shift().stop();}catch{}}
