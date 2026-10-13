@@ -81,14 +81,14 @@ async function tileSound(tier,force=false){
   if(!soundOn&&!force)return;if(tier>=7&&!force){celebrationSound(tier-6);return;}ensureAudio();if(!audioCtx)return;
   const now=audioCtx.currentTime;if(!force&&now-lastSound<.065)return;lastSound=now;
   const tile=tiles[tier];
-  const sound=tile.sound||({1:'assets/silas-merge.m4a',3:'assets/elias-merge.m4a'}[tier]??null);
+  const sound=tile.sound||({1:'assets/silas-merge.m4a',3:'assets/elias-merge-v2.m4a'}[tier]??null);
   if(sound){
     try{
       let buffer=audioBuffers.get(sound);
       if(!buffer){const response=await fetch(sound);buffer=await audioCtx.decodeAudioData(await response.arrayBuffer());audioBuffers.set(sound,buffer);}
       if(!force&&(mode!=='playing'||!soundOn))return;
       if(activeAudio.length>=4){try{activeAudio.shift().stop();}catch{}}
-      const source=audioCtx.createBufferSource();source.buffer=buffer;const gain=audioCtx.createGain();gain.gain.value=.6;source.connect(gain).connect(audioCtx.destination);source.start();source.stop(audioCtx.currentTime+Math.min(buffer.duration,8));activeAudio.push(source);source.onended=()=>{activeAudio=activeAudio.filter(x=>x!==source);};
+      const source=audioCtx.createBufferSource();source.buffer=buffer;const gain=audioCtx.createGain();const at=audioCtx.currentTime,duration=Math.min(buffer.duration,8),fade=Math.min(.025,duration/3);gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(.6,at+fade);gain.gain.setValueAtTime(.6,at+duration-fade);gain.gain.linearRampToValueAtTime(0,at+duration);source.connect(gain).connect(audioCtx.destination);source.start(at);source.stop(at+duration);activeAudio.push(source);source.onended=()=>{activeAudio=activeAudio.filter(x=>x!==source);};
     }catch{toast('Denne lyd kunne ikke afspilles. Prøv MP3 eller WAV.');}return;
   }
   const notes=[261.63,293.66,329.63,349.23,392,440,493.88,523.25,587.33,659.25,783.99,1046.5,1174.66];
