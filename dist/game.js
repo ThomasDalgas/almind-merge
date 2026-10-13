@@ -22,6 +22,26 @@ Composite.add(engine.world,walls);
 let round=createRound(),bodies=[],pending=[],particles=[],floats=[],mode='ready',time=0,aim=W/2,dragging=false,keys=new Set(),best=0,lastSound=-Infinity;
 let soundOn=true,audioCtx=null,toastTimeout;
 let assetsReady=false;
+let powers={shake:1,remove:1},rewardLevel=0,removing=false,shakeUntil=0;
+function syncPowers(){
+ const level=Math.floor(round.score/1000);if(level>rewardLevel){const count=level-rewardLevel;powers.shake+=count;powers.remove+=count;rewardLevel=level;}
+ for(const kind of ["shake","remove"]){const button=$("#"+kind);button.querySelector("b").textContent=powers[kind];button.disabled=mode!=="playing"||powers[kind]<1||(kind==="shake"&&(time<shakeUntil||!bodies.length));}
+ $("#remove").setAttribute("aria-pressed",String(removing));canvas.classList.toggle("removing",removing);
+}
+function cancelRemove(){removing=false;dragging=false;syncPowers();}
+function shake(){
+ if(mode!=="playing"||powers.shake<1||time<shakeUntil||!bodies.length)return;
+ cancelRemove();powers.shake--;shakeUntil=time+.65;
+ for(const [i,b] of bodies.entries()){if(!b.plugin.alive)continue;Matter.Sleeping.set(b,false);const sign=i%2?1:-1;Body.setVelocity(b,{x:Math.max(-1.6,Math.min(1.6,b.velocity.x+sign*1.1)),y:Math.min(b.velocity.y,-1.15)});Body.setAngularVelocity(b,sign*.035);}
+ $(".arena-wrap").animate([{translate:"0"},{translate:"-3px"},{translate:"3px"},{translate:"-2px"},{translate:"2px"},{translate:"0"}],{duration:350});syncPowers();
+}
+function removeAt(x,y){
+ if(!removing||mode!=="playing"||powers.remove<1)return false;
+ const body=[...bodies].reverse().find(b=>b.plugin.alive&&Matter.Query.point(b.parts.length>1?b.parts.slice(1):[b],{x,y}).length);if(!body)return false;
+ body.plugin.alive=false;Composite.remove(engine.world,body);bodies=bodies.filter(b=>b!==body);pending=pending.filter(pair=>!pair.includes(body));powers.remove--;
+ for(const b of bodies)Matter.Sleeping.set(b,false);burst(body.position.x,body.position.y,body.plugin.tier);cancelRemove();return true;
+}
+$("#shake").onclick=shake;$("#remove").onclick=()=>{if(mode!=="playing"||powers.remove<1)return;removing=!removing;dragging=false;syncPowers();if(removing)toast("Tryk på en brik for at fjerne den. Tryk Fjern igen for at annullere.");};
 let activeAudio=[];const audioBuffers=new Map();
 try{best=Number(localStorage.getItem('merge-lab-best')||0)||0;soundOn=localStorage.getItem('merge-lab-sound')!=='off';}catch{}
 const numberFormat=new Intl.NumberFormat('da-DK');
@@ -55,6 +75,7 @@ function previewContext(c,w,h){
   g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';return g;
 }
 function syncUI(){
+  syncPowers();
   $('#score').textContent=numberFormat.format(round.score);
   if(round.score>best){best=round.score;try{localStorage.setItem('merge-lab-best',String(best));}catch{}}
   $('#best').textContent=numberFormat.format(best);$('#next-name').textContent=tiles[round.next].name;$('#next-value').textContent=`${VALUES[round.next]} point`;
@@ -97,7 +118,7 @@ function processMerges(){
   for(const [a,b] of pending){const x=(a.position.x+b.position.x)/2,y=(a.position.y+b.position.y)/2,tier=mergeRound(round,a.plugin.tier,b.plugin.tier);Composite.remove(engine.world,[a,b]);bodies=bodies.filter(v=>v!==a&&v!==b);if(tier!==null){const n=spawn(tier,x,y);Body.setVelocity(n,{x:(a.velocity.x+b.velocity.x)*.18,y:Math.min(0,(a.velocity.y+b.velocity.y)*.18)});burst(x,y,tier);scoreFloat(x,y,VALUES[tier]);tileSound(tier);}}
   if(pending.length)syncUI();pending=[];
 }
-function drop(){if(mode!=='playing'||document.querySelector('dialog[open]'))return;const tier=dropRound(round,time);if(tier===null)return;const r=tileRadius(tier),x=Math.max(LEFT+r+1,Math.min(RIGHT-r-1,aim));spawn(tier,x,SPAWN);scoreFloat(x,SPAWN+25,VALUES[tier]);dropSound();syncUI();setStatus('Find en makker. Skab noget større.');}
+function drop(){if(removing||mode!=='playing'||document.querySelector('dialog[open]'))return;const tier=dropRound(round,time);if(tier===null)return;const r=tileRadius(tier),x=Math.max(LEFT+r+1,Math.min(RIGHT-r-1,aim));spawn(tier,x,SPAWN);scoreFloat(x,SPAWN+25,VALUES[tier]);dropSound();syncUI();setStatus('Find en makker. Skab noget større.');}
 function showOverlay(title,text,button,kicker='ET LILLE ØJEBLIK',foot='Træk for at sigte · Slip for at droppe'){
   $('.game-logo').hidden=true;$('#overlay-title').textContent=title;$('#overlay-text').textContent=text;$('#play').textContent=button;$('#overlay-kicker').textContent=kicker;$('#overlay-foot').textContent=foot;$('#overlay').hidden=false;
 }
@@ -109,13 +130,13 @@ function lockPlayScreen(lock){
 }
 function start(){
   if(!assetsReady)return;
-  stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound();time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});
+  stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound();powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});
 }
-function pause(){if(mode!=='playing')return;mode='paused';lockPlayScreen(false);keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');}
-function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;mode='playing';lockPlayScreen(true);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});}
-function end(){mode='over';lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('Plads til en ny start.',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);}
+function pause(){if(mode!=='playing')return;mode='paused';cancelRemove();lockPlayScreen(false);keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');}
+function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;mode='playing';syncPowers();lockPlayScreen(true);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});}
+function end(){mode='over';cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('Plads til en ny start.',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);}
 function step(dt){
-  if(mode!=='playing')return;time+=dt;
+  if(mode!=='playing')return;time+=dt;if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
   if(keys.has('ArrowLeft'))aim-=260*dt;if(keys.has('ArrowRight'))aim+=260*dt;
   aim=Math.max(LEFT+tileRadius(round.current)+1,Math.min(RIGHT-tileRadius(round.current)-1,aim));
   // Two 120 Hz contact solves per game tick reduce corrections in resting stacks.
@@ -142,7 +163,7 @@ function render(){
 let last=performance.now(),acc=0;
 function frame(now){const elapsed=Math.min(.08,(now-last)/1000);last=now;if(mode==='playing'){acc+=elapsed;while(acc>=1/60){step(1/60);acc-=1/60;}}else acc=0;render();requestAnimationFrame(frame);}
 function updateAim(event){const rect=canvas.getBoundingClientRect();aim=(event.clientX-rect.left)/rect.width*W;}
-canvas.addEventListener('pointerdown',e=>{if(mode!=='playing')return;e.preventDefault();ensureAudio();dragging=true;updateAim(e);canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointerdown',e=>{if(mode!=='playing')return;e.preventDefault();if(removing){const r=canvas.getBoundingClientRect();removeAt((e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H);return;}ensureAudio();dragging=true;updateAim(e);canvas.setPointerCapture(e.pointerId);});
 canvas.addEventListener('pointermove',e=>{if(mode==='playing'&&(dragging||e.pointerType==='mouse'))updateAim(e);});
 canvas.addEventListener('pointerup',e=>{if(!dragging)return;e.preventDefault();dragging=false;updateAim(e);drop();});
 canvas.addEventListener('pointercancel',()=>dragging=false);
@@ -167,4 +188,4 @@ $('#play').disabled=true;
   catch(err){toast(err.message||'Figurerne kunne ikke indlæses. Genindlæs siden.');}
 })();
 // Opt-in test interface: never present on the ordinary page.
-if(new URLSearchParams(location.search).get('test')==='1')window.__mergeTest={start,pause,resume,drop,step,spawn,processMerges,engine,refreshPhysics,get ready(){return assetsReady;},get state(){return {mode,round:{...round},time,bodies:bodies.map(b=>({id:b.id,tier:b.plugin.tier,x:b.position.x,y:b.position.y,danger:b.plugin.danger})),best};},position(body,x,y){Body.setPosition(body,{x,y});},setAim(x){aim=x;},advance(seconds){for(let i=0;i<seconds*60;i++)step(1/60);},end};
+if(new URLSearchParams(location.search).get('test')==='1')window.__mergeTest={shake,removeAt,toggleRemove(){removing=!removing;syncPowers();},setScore(score){round.score=score;syncUI();},start,pause,resume,drop,step,spawn,processMerges,engine,refreshPhysics,get ready(){return assetsReady;},get state(){return {mode,powers:{...powers},removing,round:{...round},time,bodies:bodies.map(b=>({id:b.id,tier:b.plugin.tier,x:b.position.x,y:b.position.y,danger:b.plugin.danger})),best};},position(body,x,y){Body.setPosition(body,{x,y});},setAim(x){aim=x;},advance(seconds){for(let i=0;i<seconds*60;i++)step(1/60);},end};

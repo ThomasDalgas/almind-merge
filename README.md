@@ -34,3 +34,7 @@ Med den lokale server kørende: `node tests/browser.mjs` og `node tests/polygon-
 Spil: https://thomasdalgas.github.io/almind-merge/
 
 Push til main kører npm test og publicerer dist/ automatisk. Rekorder er lokale for browser og domæne.
+
+## Hjælpemidler
+
+Hver runde starter med én Ryst og én Fjern. For hver 1.000 point gives én ekstra af hver. Ryst giver bunken et kort fysisk skub; Fjern vælges og bruges ved at trykke på en brik. Tomme tryk bruger ingen ladning. Tryk Fjern igen for at annullere. Hjælpemidler nulstilles ved en ny runde.

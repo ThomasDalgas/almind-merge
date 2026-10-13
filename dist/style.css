@@ -214,3 +214,6 @@ body{background:radial-gradient(ellipse at 15% 0%,#e9f4df 0,transparent 50%),lin
  .label,.next-card .label{font-size:12px}.score-number{font-size:30px}
  .game-logo{max-width:620px;max-height:52%}
 }
+
+.arena-toolbar{justify-content:space-between;gap:4px}.arena-toolbar .power-tools{display:flex;gap:5px}.power-button{border:1px solid #08617a;border-radius:8px;background:linear-gradient(#ffe589,#ffc744);color:#124559;font-weight:750;padding:5px 9px;font-size:13px;white-space:nowrap}.power-button b{background:#0c6175;color:white;border-radius:20px;padding:1px 5px;margin-left:2px}.power-button[aria-pressed="true"]{background:#ff9468;outline:2px solid #a94419}.removing{cursor:crosshair}.arena-wrap:has(.removing){box-shadow:0 0 0 3px #ff9468,0 8px 0 #064457}
+@media(max-width:420px){.power-button{font-size:11px;padding:4px 5px}.arena-toolbar .icon-button{width:30px}.arena-toolbar .power-tools{gap:3px}}
