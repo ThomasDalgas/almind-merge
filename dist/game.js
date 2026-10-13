@@ -16,7 +16,7 @@ resizeGameCanvas();
 const {Engine,Bodies,Body,Composite,Events,Vertices,Common}=Matter;
 Common.setDecomp(window.decomp);
 const engine=Engine.create({enableSleeping:true,positionIterations:12,velocityIterations:10});engine.gravity.y=1.3;
-const wallOptions={isStatic:true,friction:.45,restitution:0};
+const wallOptions={isStatic:true,friction:.28,restitution:0};
 const walls=[Bodies.rectangle(LEFT-15,H/2,30,H*3,wallOptions),Bodies.rectangle(RIGHT+15,H/2,30,H*3,wallOptions),Bodies.rectangle(W/2,FLOOR+20,W,40,wallOptions)];
 Composite.add(engine.world,walls);
 let round=createRound(),bodies=[],pending=[],particles=[],floats=[],mode='ready',time=0,aim=W/2,dragging=false,keys=new Set(),best=0,lastSound=-Infinity;
@@ -70,7 +70,7 @@ function makeTileBody(tier,x,y){
   // fromVertices recentres concave parts on their combined centre of mass.
   // Retain that offset so the artwork rotates about exactly the same point.
   const centre=Vertices.centre(outline);
-  const body=Bodies.fromVertices(x,y,[outline],{restitution:0,friction:.5,frictionStatic:.8,frictionAir:.012,density:.002,sleepThreshold:45},true,.001,0,.001);
+  const body=Bodies.fromVertices(x,y,[outline],{restitution:.12,friction:.28,frictionStatic:.5,frictionAir:.008,density:.002,sleepThreshold:90},true,.001,0,.001);
   body.plugin={tile:true,tier,alive:true,age:0,danger:0,artOffset:centre};
   return body;
 }
