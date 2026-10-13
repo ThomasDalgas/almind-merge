@@ -15,8 +15,9 @@ window.addEventListener('resize',resizeGameCanvas);
 resizeGameCanvas();
 const {Engine,Bodies,Body,Composite,Events,Vertices,Common}=Matter;
 Common.setDecomp(window.decomp);
-const engine=Engine.create({enableSleeping:true,positionIterations:12,velocityIterations:10});engine.gravity.y=1.3;
-const wallOptions={isStatic:true,friction:.28,restitution:0};
+// Keep unsupported tiles falling when a merge removes their neighbours.
+const engine=Engine.create({enableSleeping:false,positionIterations:16,velocityIterations:12});engine.gravity.y=1.3;
+const wallOptions={isStatic:true,friction:0,frictionStatic:0,restitution:.12};
 const walls=[Bodies.rectangle(LEFT-15,H/2,30,H*3,wallOptions),Bodies.rectangle(RIGHT+15,H/2,30,H*3,wallOptions),Bodies.rectangle(W/2,FLOOR+20,W,40,wallOptions)];
 Composite.add(engine.world,walls);
 let round=createRound(),bodies=[],pending=[],particles=[],floats=[],mode='ready',time=0,aim=W/2,dragging=false,keys=new Set(),best=0,lastSound=-Infinity;
@@ -24,7 +25,9 @@ let soundOn=true,audioCtx=null,toastTimeout;
 let assetsReady=false;
 let powers={shake:1,remove:1},rewardLevel=0,removing=false,shakeUntil=0,shakePulse=0;
 function syncPowers(){
- const level=Math.floor(round.score/1000);if(level>rewardLevel){const count=level-rewardLevel;powers.shake+=count;powers.remove+=count;rewardLevel=level;}
+ const level=Math.floor(round.score/6000);
+ for(let milestone=rewardLevel+1;milestone<=level;milestone++)powers[milestone%2?'remove':'shake']++;
+ rewardLevel=Math.max(rewardLevel,level);
  for(const kind of ["shake","remove"]){const button=$("#"+kind);button.querySelector("b").textContent=powers[kind];button.disabled=mode!=="playing"||powers[kind]<1||(kind==="shake"&&(time<shakeUntil||!bodies.length));}
  $("#remove").setAttribute("aria-pressed",String(removing));canvas.classList.toggle("removing",removing);
 }
@@ -95,7 +98,8 @@ function makeTileBody(tier,x,y){
   // fromVertices recentres concave parts on their combined centre of mass.
   // Retain that offset so the artwork rotates about exactly the same point.
   const centre=Vertices.centre(outline);
-  const body=Bodies.fromVertices(x,y,[outline],{restitution:.12,friction:.28,frictionStatic:.5,frictionAir:.008,density:.002,sleepThreshold:90},true,.001,0,.001);
+  // Visible area already adds mass; higher tiers also have a little more density.
+  const body=Bodies.fromVertices(x,y,[outline],{restitution:.24,friction:.12,frictionStatic:.2,frictionAir:.008,density:.002*(1+tier*.08),slop:.02},true,.001,0,.001);
   body.plugin={tile:true,tier,alive:true,age:0,danger:0,artOffset:centre};
   return body;
 }
@@ -143,8 +147,8 @@ function step(dt){
   if(mode!=='playing')return;time+=dt;if(shakeUntil&&time<shakeUntil){const pulse=Math.floor((time-(shakeUntil-.65))/.16);if(pulse>shakePulse){shakePulse=pulse;shakeKick(pulse%2?-1:1);}}if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
   if(keys.has('ArrowLeft'))aim-=260*dt;if(keys.has('ArrowRight'))aim+=260*dt;
   aim=Math.max(LEFT+tileRadius(round.current)+1,Math.min(RIGHT-tileRadius(round.current)-1,aim));
-  // Two 120 Hz contact solves per game tick reduce corrections in resting stacks.
-  for(let sub=0;sub<2;sub++){Engine.update(engine,dt*500);processMerges();}
+  // Four small 240 Hz solves keep fast, heavy tiles from crossing thin silhouette parts.
+  for(let sub=0;sub<4;sub++){Engine.update(engine,dt*250);processMerges();}
   let worst=0;
   for(const body of bodies){body.plugin.age+=dt;body.plugin.danger=advanceDanger(body.plugin.danger,Math.min(...body.vertices.map(v=>v.y))<TOP,dt);worst=Math.max(worst,body.plugin.danger);}
   $('#danger').hidden=worst<.8;if(worst>=.8)$('#danger b').textContent=Math.max(0,TOP_WAIT-worst).toFixed(1).replace('.',',');
