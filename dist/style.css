@@ -247,3 +247,13 @@ body{background:radial-gradient(ellipse at 15% 0%,#e9f4df 0,transparent 50%),lin
 @keyframes game-over-pop{0%{transform:scale(.08);opacity:0}65%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
 @media(max-height:500px){.overlay.game-over{padding:8px;gap:3px}.overlay.game-over #game-over-logo{max-height:48%;margin:0}.overlay.game-over .button{padding:6px 14px}}
 @media(prefers-reduced-motion:reduce){.overlay.game-over #game-over-logo{animation:none}}
+
+body:not(.started) .next-card{display:none}
+body:not(.started) .left-rail{grid-template-columns:1fr}
+@media(prefers-reduced-motion:no-preference){
+ body:not(.started) .game-logo{animation:welcome-float 4s ease-in-out infinite}
+ body:not(.started) #play{animation:welcome-glow 2.8s ease-in-out infinite}
+ .family-item:hover{transform:translateY(-4px);transition:transform .2s}
+}
+@keyframes welcome-float{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-7px) rotate(1deg)}}
+@keyframes welcome-glow{0%,100%{box-shadow:0 5px 0 #a36a20,0 9px 22px #002b4d55}50%{box-shadow:0 5px 0 #a36a20,0 0 24px #ffd05266}}

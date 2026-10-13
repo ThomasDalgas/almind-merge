@@ -23,6 +23,7 @@ Composite.add(engine.world,walls);
 let round=createRound(),bodies=[],pending=[],particles=[],floats=[],mode='ready',time=0,aim=W/2,dragging=false,keys=new Set(),best=0,lastSound=-Infinity;
 let soundOn=true,audioCtx=null,toastTimeout;
 let assetsReady=false;
+let fireworks=[];
 let dangerProgress=0;
 const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
 let powers={shake:1,remove:1},rewardLevel=0,removing=false,shakeUntil=0,shakePulse=0;
@@ -58,8 +59,26 @@ function setStatus(text){$('#status').replaceChildren();const i=document.createE
 function updateSoundButton(){const b=$('#sound');b.textContent=soundOn?'♫':'♪';b.style.opacity=soundOn?'1':'.45';b.setAttribute('aria-label',soundOn?'Slå lyd fra':'Slå lyd til');}
 function ensureAudio(){try{audioCtx??=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});}catch{}}
 function stopSounds(){for(const source of activeAudio){try{source.stop();}catch{}}activeAudio=[];}
+// Short synthesized cartoon effects, sharing the game's mute and stop controls.
+function effectTone(frequency,endFrequency,delay,duration,volume,type='sine'){
+ if(!soundOn)return;ensureAudio();if(!audioCtx)return;
+ const at=audioCtx.currentTime+delay,osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+ osc.type=type;osc.frequency.setValueAtTime(frequency,at);osc.frequency.exponentialRampToValueAtTime(endFrequency,at+duration);
+ gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(volume,at+.012);gain.gain.exponentialRampToValueAtTime(.0001,at+duration);
+ osc.connect(gain);gain.connect(audioCtx.destination);osc.start(at);osc.stop(at+duration+.02);activeAudio.push(osc);
+ osc.onended=()=>{activeAudio=activeAudio.filter(s=>s!==osc);osc.disconnect();gain.disconnect();};
+}
+function gameOverSound(){
+ // A descending wah-wah followed by a rubbery little boing.
+ [330,277,220].forEach((f,i)=>effectTone(f,f*.72,i*.16,.23,.07,'triangle'));
+ effectTone(150,58,.5,.42,.09,'triangle');effectTone(420,105,.63,.3,.04);
+}
+function celebrationSound(level){
+ effectTone(190+level*35,42,0,.15+level*.025,.12);
+ for(let i=0;i<level+1;i++)effectTone(523.25*Math.pow(2,i/4),660*Math.pow(2,i/4),.07+i*.075,.2,.035,'triangle');
+}
 async function tileSound(tier,force=false){
-  if(!soundOn&&!force)return;ensureAudio();if(!audioCtx)return;
+  if(!soundOn&&!force)return;if(tier>=7&&!force){celebrationSound(tier-6);return;}ensureAudio();if(!audioCtx)return;
   const now=audioCtx.currentTime;if(!force&&now-lastSound<.065)return;lastSound=now;
   const tile=tiles[tier];
   const sound=tile.sound||(tier===1?'assets/silas-merge.m4a':null);
@@ -118,14 +137,26 @@ function spawn(tier,x,y){
   const radius=tileRadius(tier);x=Math.max(LEFT+radius+1,Math.min(RIGHT-radius-1,x));
   const body=makeTileBody(tier,x,y);bodies.push(body);Composite.add(engine.world,body);return body;
 }
-function burst(x,y,tier){const count=tier>=9?34:12;for(let i=0;i<count;i++){const a=Math.random()*Math.PI*2,s=35+Math.random()*95;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,life:.6+Math.random()*.5,max:1.1,color:tiles[tier].color,size:2+Math.random()*4});}}
+function firework(x,y,level){
+ const colors=['#ffd052','#ff7986','#51dfdf','#fff2b0','#bd94ff'];
+ const count=reducedMotion.matches?8:18+level*12;
+ for(let i=0;i<count;i++){const a=i/count*Math.PI*2,s=65+Math.random()*(55+level*35),life=.65+Math.random()*.6+level*.12;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-30,life,max:life,color:colors[i%colors.length],size:2+Math.random()*3,firework:true});}
+ particles=particles.slice(-600);
+}
+function burst(x,y,tier,celebrate=false){
+ if(celebrate&&tier>=7){const level=tier-6;firework(x,y,level);
+  if(!reducedMotion.matches){for(let i=0;i<level;i++)fireworks.push({at:time+.18*(i+1),x:Math.max(55,Math.min(W-55,x+(i%2?1:-1)*(45+i*12))),y:Math.max(TOP+35,y-70-i*35),level});
+   $('#score').getAnimations().forEach(a=>a.cancel());$('#score').animate([{transform:'scale(1)'},{transform:'scale(1.16)',color:'#d58b08'},{transform:'scale(1)'}],{duration:450});
+  }
+ }else{const count=reducedMotion.matches?5:12;for(let i=0;i<count;i++){const a=Math.random()*Math.PI*2,s=35+Math.random()*95;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,life:.6+Math.random()*.5,max:1.1,color:tiles[tier].color,size:2+Math.random()*4});}}
+}
 function scoreFloat(x,y,value){floats.push({x,y,text:`+${value}`,life:.8});}
 Events.on(engine,'collisionStart',({pairs})=>{
   if(mode!=='playing')return;
   for(const pair of pairs){const a=pair.bodyA.parent,b=pair.bodyB.parent;if(a.plugin.tile&&b.plugin.tile&&a.plugin.alive&&b.plugin.alive&&a.plugin.tier===b.plugin.tier&&a.plugin.tier<VALUES.length-1){a.plugin.alive=b.plugin.alive=false;pending.push([a,b]);}}
 });
 function processMerges(){
-  for(const [a,b] of pending){const x=(a.position.x+b.position.x)/2,y=(a.position.y+b.position.y)/2,tier=mergeRound(round,a.plugin.tier,b.plugin.tier);Composite.remove(engine.world,[a,b]);bodies=bodies.filter(v=>v!==a&&v!==b);if(tier!==null){const n=spawn(tier,x,y);Body.setVelocity(n,{x:(a.velocity.x+b.velocity.x)*.18,y:Math.min(0,(a.velocity.y+b.velocity.y)*.18)});burst(x,y,tier);scoreFloat(x,y,VALUES[tier]);tileSound(tier);}}
+  for(const [a,b] of pending){const x=(a.position.x+b.position.x)/2,y=(a.position.y+b.position.y)/2,tier=mergeRound(round,a.plugin.tier,b.plugin.tier);Composite.remove(engine.world,[a,b]);bodies=bodies.filter(v=>v!==a&&v!==b);if(tier!==null){const n=spawn(tier,x,y);Body.setVelocity(n,{x:(a.velocity.x+b.velocity.x)*.18,y:Math.min(0,(a.velocity.y+b.velocity.y)*.18)});burst(x,y,tier,true);scoreFloat(x,y,VALUES[tier]);tileSound(tier);}}
   if(pending.length)syncUI();pending=[];
 }
 function drop(){if(removing||mode!=='playing'||document.querySelector('dialog[open]'))return;const tier=dropRound(round,time);if(tier===null)return;const r=tileRadius(tier),x=Math.max(LEFT+r+1,Math.min(RIGHT-r-1,aim));spawn(tier,x,SPAWN);scoreFloat(x,SPAWN+25,VALUES[tier]);dropSound();syncUI();setStatus('Find en makker. Skab noget større.');}
@@ -141,12 +172,12 @@ function lockPlayScreen(lock){
 }
 function start(){
   if(!assetsReady)return;
-  dangerProgress=0;$('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');
+  document.body.classList.add('started');fireworks=[];dangerProgress=0;$('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');
   stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound();powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});
 }
 function pause(){if(mode!=='playing')return;mode='paused';cancelRemove();lockPlayScreen(false);keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');}
 function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;mode='playing';syncPowers();lockPlayScreen(true);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});}
-function end(){mode='over';cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);$('#game-over-logo').hidden=false;$('#overlay').classList.add('game-over');}
+function end(){if(mode==='over')return;mode='over';fireworks=[];cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);$('#game-over-logo').hidden=false;$('#overlay').classList.add('game-over');gameOverSound();}
 function step(dt){
   if(mode!=='playing')return;time+=dt;if(shakeUntil&&time<shakeUntil){const pulse=Math.floor((time-(shakeUntil-.65))/.16);if(pulse>shakePulse){shakePulse=pulse;shakeKick(pulse%2?-1:1);}}if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
   if(keys.has('ArrowLeft'))aim-=260*dt;if(keys.has('ArrowRight'))aim+=260*dt;
@@ -158,6 +189,7 @@ function step(dt){
   dangerProgress=Math.min(1,worst/TOP_WAIT);
   $('#danger').hidden=worst<.8;if(worst>=.8)$('#danger b').textContent=Math.max(0,TOP_WAIT-worst).toFixed(1).replace('.',',');
   if(worst>=TOP_WAIT)end();
+  for(const f of fireworks.filter(f=>f.at<=time))firework(f.x,f.y,f.level);fireworks=fireworks.filter(f=>f.at>time);
   for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=110*dt;p.life-=dt;}particles=particles.filter(p=>p.life>0);
   for(const f of floats){f.y-=30*dt;f.life-=dt;}floats=floats.filter(f=>f.life>0);
 }
@@ -176,7 +208,7 @@ function render(){
   if(mode==='playing'||mode==='paused'){
     const radius=tileRadius(round.current),x=Math.max(LEFT+radius+1,Math.min(RIGHT-radius-1,aim));ctx.strokeStyle='#92a98060';ctx.lineWidth=1;ctx.setLineDash([3,7]);ctx.beginPath();ctx.moveTo(x,SPAWN+radius+7);ctx.lineTo(x,FLOOR-6);ctx.stroke();ctx.setLineDash([]);drawTile(ctx,round.current,x,SPAWN,radius,{alpha:time-round.lastDrop<.5?.55:1});ctx.font='9px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillStyle='#879a78';ctx.fillText('↓',x,Math.max(15,SPAWN-radius-10));
   }
-  for(const p of particles){ctx.save();ctx.globalAlpha=Math.min(1,p.life*2);ctx.fillStyle=p.color;ctx.translate(p.x,p.y);ctx.rotate(p.life*3);ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size);ctx.restore();}
+  for(const p of particles){ctx.save();ctx.globalAlpha=Math.min(1,p.life*2);if(p.firework){ctx.beginPath();ctx.moveTo(p.x-p.vx*.035,p.y-p.vy*.035);ctx.lineTo(p.x,p.y);ctx.strokeStyle=p.color;ctx.lineWidth=p.size*.65;ctx.stroke();}ctx.fillStyle=p.color;ctx.translate(p.x,p.y);ctx.rotate(p.life*3);ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size);ctx.restore();}
   for(const f of floats){ctx.globalAlpha=Math.min(1,f.life*2);ctx.fillStyle='#426843';ctx.font='600 15px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillText(f.text,f.x,f.y);}ctx.globalAlpha=1;
 }
 let last=performance.now(),acc=0;
@@ -207,4 +239,4 @@ $('#play').disabled=true;
   catch(err){toast(err.message||'Figurerne kunne ikke indlæses. Genindlæs siden.');}
 })();
 // Opt-in test interface: never present on the ordinary page.
-if(new URLSearchParams(location.search).get('test')==='1')window.__mergeTest={shake,removeAt,toggleRemove(){removing=!removing;syncPowers();},setScore(score){round.score=score;syncUI();},start,pause,resume,drop,step,spawn,processMerges,engine,refreshPhysics,get ready(){return assetsReady;},get state(){return {mode,dangerProgress,powers:{...powers},removing,round:{...round},time,bodies:bodies.map(b=>({id:b.id,tier:b.plugin.tier,x:b.position.x,y:b.position.y,danger:b.plugin.danger})),best};},position(body,x,y){Body.setPosition(body,{x,y});},setAim(x){aim=x;},advance(seconds){for(let i=0;i<seconds*60;i++)step(1/60);},end};
+if(new URLSearchParams(location.search).get('test')==='1')window.__mergeTest={shake,removeAt,toggleRemove(){removing=!removing;syncPowers();},setScore(score){round.score=score;syncUI();},start,pause,resume,drop,step,spawn,processMerges,engine,refreshPhysics,get ready(){return assetsReady;},get state(){return {mode,dangerProgress,effects:{particles:particles.length,fireworks:fireworks.length,audio:activeAudio.length},powers:{...powers},removing,round:{...round},time,bodies:bodies.map(b=>({id:b.id,tier:b.plugin.tier,x:b.position.x,y:b.position.y,danger:b.plugin.danger})),best};},position(body,x,y){Body.setPosition(body,{x,y});},setAim(x){aim=x;},advance(seconds){for(let i=0;i<seconds*60;i++)step(1/60);},end};
