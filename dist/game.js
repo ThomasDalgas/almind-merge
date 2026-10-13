@@ -58,7 +58,10 @@ function syncUI(){
   $('#score').textContent=numberFormat.format(round.score);
   if(round.score>best){best=round.score;try{localStorage.setItem('merge-lab-best',String(best));}catch{}}
   $('#best').textContent=numberFormat.format(best);$('#next-name').textContent=tiles[round.next].name;$('#next-value').textContent=`${VALUES[round.next]} point`;
-  const c=$('#next-preview'),g=previewContext(c,160,120);drawTile(g,round.next,80,60,tileRadius(round.next,18+round.next*4));
+  const c=$('#next-preview'),g=previewContext(c,160,120);const outline=tileOutline(round.next),xs=outline.map(p=>p.x),ys=outline.map(p=>p.y);
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const r=Math.min(144/(maxX-minX),108/(maxY-minY));
+  drawTile(g,round.next,80-(minX+maxX)*r/2,60-(minY+maxY)*r/2,r);
   c.setAttribute('aria-label',`Næste brik: ${tiles[round.next].name}, ${VALUES[round.next]} point`);
   document.querySelectorAll('.family-item').forEach((el,i)=>el.classList.toggle('reached',i<=round.maxTier));
 }
