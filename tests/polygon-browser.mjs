@@ -5,7 +5,7 @@ const page=await browser.newPage({viewport:{width:1440,height:1120}});
 try{
 await page.goto(`${BASE_URL}/?test=1`);await page.waitForFunction(()=>window.__mergeTest?.ready);
 const result=await page.evaluate(async()=>{
- const {tileOutline,tileRadius,tiles}=await import('/theme.js?v=tina-original'),{signedArea}=await import('/shapes.js'),{RADII}=await import('/rules.js');
+ const {tileOutline,tileRadius,tiles}=await import('/theme.js?v=gallery-v1'),{signedArea}=await import('/shapes.js'),{RADII}=await import('/rules.js');
  const t=window.__mergeTest;t.start();
  const tina=t.spawn(6,220,400),outline=tileOutline(6),r=tileRadius(6);
  const area=Math.abs(signedArea(outline))*r*r;

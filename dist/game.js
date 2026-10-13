@@ -1,5 +1,5 @@
 import {VALUES,TOP_WAIT,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=gameover-v1';
-import {tiles,drawTile,tileOutline,tileRadius,preloadImages} from './theme.js?v=tina-original';
+import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=gallery-v1';
 const $=s=>document.querySelector(s);
 const canvas=$('#game'),ctx=canvas.getContext('2d');
 const W=440,H=620,LEFT=24,RIGHT=416,FLOOR=593,TOP=128,SPAWN=66;
@@ -229,8 +229,13 @@ document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$('#'+b.datas
 document.querySelectorAll('dialog').forEach(d=>d.addEventListener('close',()=>{stopSounds();if(resumeAfterDialog){resumeAfterDialog=false;resume();}}));
 $('#how-open').onclick=()=>openDialog('how');$('#restart').onclick=()=>{if(round.drops>0&&mode!=='over')openDialog('confirm');else start();};
 $('#confirm-restart').onclick=()=>{resumeAfterDialog=false;$('#confirm').close();start();};
+const portrait=$('#portrait');
+let portraitBackdropDown=false;
+const outsidePortrait=e=>{const r=portrait.getBoundingClientRect();return e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom;};
+portrait.addEventListener('pointerdown',e=>{portraitBackdropDown=outsidePortrait(e);});
+portrait.addEventListener('click',e=>{if(portraitBackdropDown&&outsidePortrait(e))portrait.close();portraitBackdropDown=false;});
 function buildFamily(){
-  $('#family').replaceChildren();tiles.forEach((t,i)=>{const el=document.createElement('div');el.className='family-item';const c=document.createElement('canvas');c.width=100;c.height=95;c.setAttribute('aria-label',t.name);drawTile(previewContext(c,100,95),i,50,47,tileRadius(i,21+i*1.3),{number:false});const value=document.createElement('b');value.textContent=String(VALUES[i]);const name=document.createElement('span');name.textContent=t.name;el.append(c,value,name);$('#family').append(el);});syncUI();
+  $('#family').replaceChildren();tiles.forEach((t,i)=>{const el=document.createElement('button');el.type='button';el.className='family-item';el.setAttribute('aria-label',`Se ${t.name} i stor størrelse`);el.onclick=()=>{const img=$('#portrait-image');img.src=tileSource(i);img.alt=t.name;$('#portrait-name').textContent=t.name;$('#portrait-points').textContent=`${numberFormat.format(VALUES[i])} point`;openDialog('portrait');};const c=document.createElement('canvas');c.width=100;c.height=95;c.setAttribute('aria-label',t.name);drawTile(previewContext(c,100,95),i,50,47,tileRadius(i,21+i*1.3),{number:false});const value=document.createElement('b');value.textContent=String(VALUES[i]);const name=document.createElement('span');name.textContent=t.name;el.append(c,value,name);$('#family').append(el);});syncUI();
 }
 updateSoundButton();buildFamily();requestAnimationFrame(frame);
 $('#play').disabled=true;

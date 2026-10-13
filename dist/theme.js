@@ -6,7 +6,7 @@ export const defaultTiles=()=>NAMES.map((name,i)=>({name,color:COLORS[i],image:n
 export let tiles=defaultTiles();
 const images=new Map(),outlines=new Map(),mipmaps=new Map();
 const BUILTIN={0:'assets/football-v2.png',1:'assets/silas-2.png',2:'assets/niklas-4.png',3:'assets/elias-8.png',4:'assets/milas-32.png',5:'assets/malika-64-v2.png',6:'assets/tina-original.png',8:'assets/david-512.png',7:'assets/rikke-256.png',9:'assets/helle-1024.png',10:'assets/svend-2048-v2.png'};
-const tileSource=tier=>tiles[tier].image||BUILTIN[tier]||null;
+export const tileSource=tier=>tiles[tier].image||BUILTIN[tier]||null;
 export function tileOutline(tier){return outlines.get(tileSource(tier))||placeholderOutline(tier);}
 // Equal visible area for equal target radii, regardless of transparent padding.
 export function tileRadius(tier,target=RADII[tier]){
