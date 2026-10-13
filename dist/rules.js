@@ -1,7 +1,7 @@
 export const VALUES = Array.from({length:11},(_,i)=>2**(i+1));
 export const RADII = [16,25,30,35,40,45,50,57,65,74,84];
 export const DROP_DELAY = .5;
-export const TOP_WAIT = 5;
+export const TOP_WAIT = 15;
 export function mergeTier(a,b){return a===b && Number.isInteger(a) && a>=0 && a<VALUES.length-1 ? a+1 : null;}
 export function nextTier(drops,maxTier,random=Math.random){
   if(drops<3)return 0;

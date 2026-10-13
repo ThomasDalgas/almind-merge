@@ -237,3 +237,13 @@ body{background:radial-gradient(ellipse at 15% 0%,#e9f4df 0,transparent 50%),lin
 .overlay:has(.game-logo:not([hidden])) .overlay-foot{color:#d4efeb}
 .overlay:has(.game-logo:not([hidden])) .primary{background:linear-gradient(#ffe794,#efb83e);border-color:#ffe8a3;color:#163f50;box-shadow:0 5px 0 #a36a20,0 9px 22px #002b4d55;min-width:150px;font-weight:800}
 .overlay:has(.game-logo:not([hidden])) .primary:hover{background:linear-gradient(#fff0ba,#ffd25e)}
+
+#game-over-logo{display:block;width:min(90%,380px);max-height:52%;object-fit:contain;min-height:0;margin:0 0 12px;filter:drop-shadow(0 8px 12px #001c3680)}
+#game-over-logo[hidden]{display:none}
+.overlay.game-over{background:radial-gradient(ellipse at 50% 30%,#277b86f5,#083f59f5);color:#fff3cc}
+.overlay.game-over p,.overlay.game-over .overlay-foot{color:#fff3cc}
+.overlay.game-over .eyebrow{display:none}
+.overlay.game-over #game-over-logo{animation:game-over-pop .7s cubic-bezier(.18,.8,.25,1) both}
+@keyframes game-over-pop{0%{transform:scale(.08);opacity:0}65%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
+@media(max-height:500px){.overlay.game-over{padding:8px;gap:3px}.overlay.game-over #game-over-logo{max-height:48%;margin:0}.overlay.game-over .button{padding:6px 14px}}
+@media(prefers-reduced-motion:reduce){.overlay.game-over #game-over-logo{animation:none}}
