@@ -22,7 +22,7 @@ Composite.add(engine.world,walls);
 let round=createRound(),bodies=[],pending=[],particles=[],floats=[],mode='ready',time=0,aim=W/2,dragging=false,keys=new Set(),best=0,lastSound=-Infinity;
 let soundOn=true,audioCtx=null,toastTimeout;
 let assetsReady=false;
-let powers={shake:1,remove:1},rewardLevel=0,removing=false,shakeUntil=0;
+let powers={shake:1,remove:1},rewardLevel=0,removing=false,shakeUntil=0,shakePulse=0;
 function syncPowers(){
  const level=Math.floor(round.score/1000);if(level>rewardLevel){const count=level-rewardLevel;powers.shake+=count;powers.remove+=count;rewardLevel=level;}
  for(const kind of ["shake","remove"]){const button=$("#"+kind);button.querySelector("b").textContent=powers[kind];button.disabled=mode!=="playing"||powers[kind]<1||(kind==="shake"&&(time<shakeUntil||!bodies.length));}
@@ -32,8 +32,11 @@ function cancelRemove(){removing=false;dragging=false;syncPowers();}
 function shake(){
  if(mode!=="playing"||powers.shake<1||time<shakeUntil||!bodies.length)return;
  cancelRemove();powers.shake--;shakeUntil=time+.65;
- for(const [i,b] of bodies.entries()){if(!b.plugin.alive)continue;Matter.Sleeping.set(b,false);const sign=i%2?1:-1;Body.setVelocity(b,{x:Math.max(-1.6,Math.min(1.6,b.velocity.x+sign*1.1)),y:Math.min(b.velocity.y,-1.15)});Body.setAngularVelocity(b,sign*.035);}
- $(".arena-wrap").animate([{translate:"0"},{translate:"-3px"},{translate:"3px"},{translate:"-2px"},{translate:"2px"},{translate:"0"}],{duration:350});syncPowers();
+ shakePulse=0;shakeKick(1);
+ $(".arena-wrap").animate([{translate:"0"},{translate:"-6px"},{translate:"6px"},{translate:"-5px"},{translate:"5px"},{translate:"-3px"},{translate:"0"}],{duration:600});syncPowers();
+}
+function shakeKick(direction){
+ for(const b of bodies){if(!b.plugin.alive)continue;Matter.Sleeping.set(b,false);Body.setVelocity(b,{x:Math.max(-3.2,Math.min(3.2,b.velocity.x+direction*2.6)),y:Math.min(b.velocity.y,-.6)});Body.setAngularVelocity(b,Math.max(-.07,Math.min(.07,b.angularVelocity+direction*.035)));}
 }
 function removeAt(x,y){
  if(!removing||mode!=="playing"||powers.remove<1)return false;
@@ -137,7 +140,7 @@ function pause(){if(mode!=='playing')return;mode='paused';cancelRemove();lockPla
 function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;mode='playing';syncPowers();lockPlayScreen(true);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});}
 function end(){mode='over';cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('Plads til en ny start.',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);}
 function step(dt){
-  if(mode!=='playing')return;time+=dt;if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
+  if(mode!=='playing')return;time+=dt;if(shakeUntil&&time<shakeUntil){const pulse=Math.floor((time-(shakeUntil-.65))/.16);if(pulse>shakePulse){shakePulse=pulse;shakeKick(pulse%2?-1:1);}}if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
   if(keys.has('ArrowLeft'))aim-=260*dt;if(keys.has('ArrowRight'))aim+=260*dt;
   aim=Math.max(LEFT+tileRadius(round.current)+1,Math.min(RIGHT-tileRadius(round.current)-1,aim));
   // Two 120 Hz contact solves per game tick reduce corrections in resting stacks.
@@ -152,8 +155,8 @@ function step(dt){
 function render(){
   ctx.clearRect(0,0,W,H);ctx.fillStyle='#e5ecd9';ctx.fillRect(0,0,W,H);
   ctx.fillStyle='#d6dfca75';for(let x=20;x<W;x+=22)for(let y=18;y<H;y+=22){ctx.beginPath();ctx.arc(x,y,.65,0,7);ctx.fill();}
-  ctx.strokeStyle='#aebd9d';ctx.lineWidth=1;ctx.setLineDash([4,6]);ctx.beginPath();ctx.moveTo(LEFT+8,TOP);ctx.lineTo(RIGHT-8,TOP);ctx.stroke();ctx.setLineDash([]);ctx.font='11px -apple-system, sans-serif';ctx.fillStyle='#9aaa8c';ctx.textAlign='left';ctx.fillText('HOLD FIGURERNE UNDER LINJEN',LEFT+8,TOP+17);
-  ctx.strokeStyle='#c7d3b9';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(LEFT,TOP+32);ctx.lineTo(LEFT,FLOOR-15);ctx.quadraticCurveTo(LEFT,FLOOR,LEFT+15,FLOOR);ctx.lineTo(RIGHT-15,FLOOR);ctx.quadraticCurveTo(RIGHT,FLOOR,RIGHT,FLOOR-15);ctx.lineTo(RIGHT,TOP+32);ctx.stroke();
+  ctx.lineCap='round';ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(LEFT,TOP);ctx.lineTo(RIGHT,TOP);ctx.strokeStyle='#07536e';ctx.lineWidth=7;ctx.stroke();ctx.strokeStyle='#ffd052';ctx.lineWidth=3;ctx.stroke();ctx.font='600 11px -apple-system, sans-serif';ctx.fillStyle='#15536a';ctx.textAlign='left';ctx.fillText('HOLD FIGURERNE UNDER LINJEN',LEFT+8,TOP+20);
+  ctx.beginPath();ctx.moveTo(LEFT,TOP+32);ctx.lineTo(LEFT,FLOOR-15);ctx.quadraticCurveTo(LEFT,FLOOR,LEFT+15,FLOOR);ctx.lineTo(RIGHT-15,FLOOR);ctx.quadraticCurveTo(RIGHT,FLOOR,RIGHT,FLOOR-15);ctx.lineTo(RIGHT,TOP+32);ctx.strokeStyle='#07536e';ctx.lineWidth=8;ctx.stroke();ctx.strokeStyle='#29a8b4';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='#f8d36a';ctx.lineWidth=1;ctx.stroke();
   for(const body of bodies){const d=body.plugin;if(!d.alive)continue;const r=tileRadius(d.tier),o=d.artOffset,a=body.angle;drawTile(ctx,d.tier,body.position.x-o.x*Math.cos(a)+o.y*Math.sin(a),body.position.y-o.x*Math.sin(a)-o.y*Math.cos(a),r,{rotation:a});if(d.danger>.8){ctx.strokeStyle=`rgba(184,78,62,${Math.min(.8,d.danger/5)})`;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(body.position.x,body.position.y,r+3,-Math.PI/2,-Math.PI/2+Math.PI*2*d.danger/TOP_WAIT);ctx.stroke();}}
   if(mode==='playing'||mode==='paused'){
     const radius=tileRadius(round.current),x=Math.max(LEFT+radius+1,Math.min(RIGHT-radius-1,aim));ctx.strokeStyle='#92a98060';ctx.lineWidth=1;ctx.setLineDash([3,7]);ctx.beginPath();ctx.moveTo(x,SPAWN+radius+7);ctx.lineTo(x,FLOOR-6);ctx.stroke();ctx.setLineDash([]);drawTile(ctx,round.current,x,SPAWN,radius,{alpha:time-round.lastDrop<.5?.55:1});ctx.font='9px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillStyle='#879a78';ctx.fillText('↓',x,Math.max(15,SPAWN-radius-10));
