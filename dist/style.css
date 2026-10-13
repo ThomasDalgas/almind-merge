@@ -269,3 +269,25 @@ button.family-item{font:inherit;color:inherit;border:0;width:100%;min-width:0;cu
 #portrait-play{display:block;width:100%;padding:0;border:0;background:none;color:inherit;cursor:pointer;border-radius:16px}
 .portrait-audio-hint{display:block;font-size:12px;line-height:1.4;color:#d6ebe6;margin-top:6px}
 #portrait-play:active{transform:scale(.98)}
+
+/* A centred welcome screen, with the same gold and teal as the family logo. */
+body:not(.started) main{max-width:1100px;padding-top:18px}
+body:not(.started) .play-layout{display:grid;grid-template-columns:minmax(0,660px);justify-content:center;gap:0}
+body:not(.started) .left-rail,body:not(.started) .power-tools,body:not(.started) #pause,body:not(.started) #restart,body:not(.started) .arena-caption{display:none}
+body:not(.started) .arena-toolbar{justify-content:flex-end;height:36px}
+body:not(.started) .arena-wrap{width:100%;height:clamp(430px,72svh,680px);aspect-ratio:auto;border-radius:30px;border:2px solid #f3cd68;box-shadow:0 8px 0 #063d54,0 22px 48px #073a4938}
+body:not(.started) #overlay{padding:36px 28px;isolation:isolate;background:radial-gradient(ellipse at 50% 32%,#35b4af66,transparent 60%),repeating-conic-gradient(from -12deg at 50% 32%,#ffffff03 0deg 15deg,transparent 15deg 30deg),linear-gradient(160deg,#063852,#087b85 58%,#073c57);box-shadow:inset 0 0 70px #00233955}
+body:not(.started) #overlay::before{content:'';position:absolute;inset:12px;border:1px solid #f8d77766;border-radius:20px;pointer-events:none;z-index:-1}
+body:not(.started) #overlay::after{content:'✦';position:absolute;top:8%;right:10%;font-size:20px;color:#ffe28a;text-shadow:-240px 65px #ffe28a66,20px 235px #ffe28a55;pointer-events:none;z-index:-1}
+body:not(.started) .game-logo{width:100%;max-width:520px;max-height:54%;margin:0 0 24px;flex-shrink:1;min-height:0}
+body:not(.started) #overlay-text{font-size:clamp(14px,2.2vw,18px);line-height:1.5;font-weight:500;letter-spacing:.2px;margin:0 0 26px;color:#e0f4ed}
+body:not(.started) #play{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:min(100%,280px);min-height:64px;margin:0;padding:16px 28px;border:2px solid #fff0ad;border-radius:20px;background:linear-gradient(180deg,#ffeaaa 0%,#ffd361 48%,#edb636 100%);color:#10475a;font-size:24px;font-weight:850;line-height:1.2;letter-spacing:.2px;text-align:center;text-shadow:0 1px #fff3bd;box-shadow:inset 0 2px 0 #fff5cb,0 6px 0 #a66c1d,0 12px 24px #00233366;animation:none;transition:transform .15s,filter .15s,box-shadow .15s}
+body:not(.started) #play:hover{filter:brightness(1.06);transform:translateY(-2px)}
+body:not(.started) #play:active{transform:translateY(4px);box-shadow:inset 0 2px 0 #fff5cb,0 2px 0 #a66c1d,0 6px 12px #00233344}
+body:not(.started) #play:focus-visible{outline:3px solid #fff5c7;outline-offset:6px}
+body:not(.started) #overlay-foot{margin-top:23px;font-size:12px;letter-spacing:.4px;color:#b9dddf}
+body:not(.started) .collection{margin-top:42px;padding-top:24px;border-top:1px solid #538b9670}
+body:not(.started) .collection-head h2{font-family:inherit;font-weight:750;color:#12475a}
+body:not(.started) .family-item{background:linear-gradient(145deg,#f4fff16b,#d3eceb66);border:1px solid #ffffff77;border-radius:20px;padding:12px 6px;box-shadow:0 4px 12px #174e5710}
+@media(max-width:760px){body:not(.started) main{padding:6px 12px 0}body:not(.started) #overlay{padding:28px 20px}body:not(.started) .arena-wrap{height:clamp(430px,72svh,620px)}body:not(.started) #play{width:min(100%,250px);font-size:22px;min-height:60px}body:not(.started) .collection{margin-top:32px}}
+@media(max-height:500px) and (orientation:landscape){body:not(.started) .arena-wrap{height:430px}}
