@@ -26,7 +26,7 @@ const result=await page.evaluate(async()=>{
  return {name:tiles[6].name,parts:tina.parts.length,points:outline.length,areaError:Math.abs(tina.area-area),alignment,rotatedError,recess,ledge,innerWall,merged};
 });
 console.log(result);
-assert.equal(result.name,'Mor Tina');assert.ok(result.parts>2);assert.ok(result.points>8);
+assert.equal(result.name,'Tina');assert.ok(result.parts>2);assert.ok(result.points>8);
 assert.ok(result.areaError<.01);assert.ok(result.alignment<.01);assert.ok(result.rotatedError<.01);
 assert.equal(result.recess,0);assert.ok(result.ledge>0);assert.ok(result.innerWall>0);
 assert.equal(result.merged.bodies.length,1);assert.equal(result.merged.bodies[0].tier,6);assert.equal(result.merged.round.score,128);

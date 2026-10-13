@@ -1,5 +1,5 @@
 import {VALUES,TOP_WAIT,createRound,dropRound,mergeRound,advanceDanger} from './rules.js';
-import {tiles,drawTile,tileOutline,tileRadius,preloadImages} from './theme.js?v=approved-art';
+import {tiles,drawTile,tileOutline,tileRadius,preloadImages} from './theme.js?v=tina-original';
 const $=s=>document.querySelector(s);
 const canvas=$('#game'),ctx=canvas.getContext('2d');
 const W=440,H=620,LEFT=24,RIGHT=416,FLOOR=593,TOP=128,SPAWN=66;

@@ -1,11 +1,11 @@
 import {RADII} from './rules.js';
 import {placeholderOutline,outlineFromAlpha,signedArea} from './shapes.js';
-export const NAMES=['Fodbold','Silas','Niklas','Elias','Milas','Malika','Mor Tina','Rikke','David','Helle','Svend'];
+export const NAMES=['Fodbold','Silas','Niklas','Elias','Milas','Malika','Tina','Rikke','David','Helle','Svend'];
 const COLORS=['#ffffff','#b9cf90','#efd976','#c4b2d9','#eeb19b','#ddacc0','#9acac3','#a0b9d7','#daa16e','#b0c783','#cab3db','#edc384','#8fae96'];
 export const defaultTiles=()=>NAMES.map((name,i)=>({name,color:COLORS[i],image:null,sound:null}));
 export let tiles=defaultTiles();
 const images=new Map(),outlines=new Map(),mipmaps=new Map();
-const BUILTIN={0:'assets/football-v2.png',1:'assets/silas-2.png',2:'assets/niklas-4.png',3:'assets/elias-8.png',4:'assets/milas-32.png',5:'assets/malika-64-v2.png',6:'assets/mor-tina-64-v2.png',8:'assets/david-512.png',7:'assets/rikke-256.png',9:'assets/helle-1024.png',10:'assets/svend-2048-v2.png'};
+const BUILTIN={0:'assets/football-v2.png',1:'assets/silas-2.png',2:'assets/niklas-4.png',3:'assets/elias-8.png',4:'assets/milas-32.png',5:'assets/malika-64-v2.png',6:'assets/tina-original.png',8:'assets/david-512.png',7:'assets/rikke-256.png',9:'assets/helle-1024.png',10:'assets/svend-2048-v2.png'};
 const tileSource=tier=>tiles[tier].image||BUILTIN[tier]||null;
 export function tileOutline(tier){return outlines.get(tileSource(tier))||placeholderOutline(tier);}
 // Equal visible area for equal target radii, regardless of transparent padding.
@@ -46,6 +46,7 @@ export function validatePack(data){
   });
   if(legacy)mapped.unshift(defaultTiles()[0]);
   for(const [i,old] of [[10,'Nova'],[9,'Sky'],[7,'Måne'],[8,'Komet'],[5,'Blomst'],[4,'Fersken'],[1,'Spire'],[2,'Sol'],[3,'Boble'],[6,'Bølge']])if(mapped[i].name===old&&!mapped[i].image)mapped[i].name=NAMES[i];
+  if(mapped[6].name==='Mor Tina')mapped[6].name='Tina';
   return mapped.slice(0,NAMES.length);
 }
 export async function replaceTiles(next){

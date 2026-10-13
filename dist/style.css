@@ -226,3 +226,14 @@ body{background:radial-gradient(ellipse at 15% 0%,#e9f4df 0,transparent 50%),lin
 .game-logo.family-logo{width:100%;height:auto;max-width:540px;flex:0 1 auto;margin-bottom:18px}
 .brand-logo.family-logo{width:66px;height:40px;flex-shrink:0}
 .family-logo[hidden]{display:none}
+
+/* A festive teal-and-gold opening screen around the family artwork. */
+.overlay:has(.game-logo:not([hidden])){
+ background:radial-gradient(ellipse at 50% 34%,#42bdbe99,transparent 58%),repeating-conic-gradient(from -15deg at 50% 36%,#ffffff06 0deg 12deg,transparent 12deg 24deg),linear-gradient(155deg,#093e61,#087f89 62%,#06445b);
+ box-shadow:inset 0 0 0 7px #efc45355,inset 0 0 65px #002b4d88;
+}
+.overlay:has(.game-logo:not([hidden])) .game-logo{max-height:55%;filter:drop-shadow(0 10px 14px #00263899);margin-bottom:24px}
+.overlay:has(.game-logo:not([hidden])) p{color:#fff5d1;font-weight:600;text-shadow:0 2px 3px #003b50}
+.overlay:has(.game-logo:not([hidden])) .overlay-foot{color:#d4efeb}
+.overlay:has(.game-logo:not([hidden])) .primary{background:linear-gradient(#ffe794,#efb83e);border-color:#ffe8a3;color:#163f50;box-shadow:0 5px 0 #a36a20,0 9px 22px #002b4d55;min-width:150px;font-weight:800}
+.overlay:has(.game-logo:not([hidden])) .primary:hover{background:linear-gradient(#fff0ba,#ffd25e)}
