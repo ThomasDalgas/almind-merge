@@ -5,6 +5,7 @@ async function open(width,height,touch=true){
  const page=await browser.newPage({viewport:{width,height},isMobile:touch,hasTouch:touch});
  await page.route('https://*.supabase.co/**',route=>route.fulfill({status:route.request().url().includes('/auth/')?503:200,contentType:'application/json',body:'[]'}));
  await page.addInitScript(()=>{window.displayRequests=[];Element.prototype.requestFullscreen=()=>{displayRequests.push('fullscreen');return Promise.reject(new Error('Simulated unsupported Safari fullscreen'));};});
+ await page.addInitScript(()=>localStorage.setItem('almind-score-nickname','Testspiller'));
  await page.goto(BASE_URL+'/?test=1');await page.waitForFunction(()=>window.__mergeTest?.ready);return page;
 }
 try{

@@ -1,10 +1,10 @@
 import {SCORE_CONFIG} from './score-config.js';
-import {NAMES} from './theme.js?v=gallery-v1';
+import {createScoreAutosave} from './score-autosave.js?v=autosave-v1';
 const $=s=>document.querySelector(s),fmt=new Intl.NumberFormat('da-DK');
-const storage={get(k){try{return localStorage.getItem(k);}catch{return null;}},set(k,v){try{localStorage.setItem(k,v);}catch{}}};
+const storage={get(k){try{return localStorage.getItem(k);}catch{return null;}},set(k,v){try{localStorage.setItem(k,v);}catch{}},remove(k){try{localStorage.removeItem(k);}catch{}},keys(){try{return Object.keys(localStorage);}catch{return [];}}};
 export function validNickname(value){return /^[\p{L}\p{N} _-]{2,20}$/u.test(value.trim());}
 export function createScoreApi(config,{fetcher=fetch,store=storage}={}){
- const ready=Boolean(config.url&&config.key);let session=null;
+ const ready=Boolean(config.url&&config.key);let session=null,sessionRequest=null;
  const sessionKey=`almind-score-session:${config.url}`;
  async function request(path,body,token){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
@@ -22,16 +22,17 @@ export function createScoreApi(config,{fetcher=fetch,store=storage}={}){
    if(!data.access_token||!data.user?.id)throw new Error('Kunne ikke oprette spillerprofil');
    session={access_token:data.access_token,refresh_token:data.refresh_token,expires_at:data.expires_at||Date.now()/1000+data.expires_in,user:data.user};store.set(sessionKey,JSON.stringify(session));return session;
   };
-  return globalThis.navigator?.locks? navigator.locks.request('almind-score-auth',run):run();
+  if(!sessionRequest)sessionRequest=(globalThis.navigator?.locks?navigator.locks.request('almind-score-auth',run):run()).finally(()=>{sessionRequest=null;});
+  return sessionRequest;
  }
  async function rpc(name,args={},auth=true){if(!ready)throw new Error('Highscorelisten er ikke tilsluttet endnu');const s=auth?await getSession():null;return request(`/rest/v1/rpc/${name}`,args,s?.access_token);}
- return {ready,live:(id,nickname,score,tier,active)=>rpc('am_live_update',{p_round:id,p_nickname:nickname,p_score:score,p_max_tier:tier,p_active:active}),liveList:()=>rpc('am_live_snapshot',{},false),start:()=>rpc('am_start_round'),submit:(id,nickname,events,duration)=>rpc('am_submit_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),list:async scope=>{
+ return {ready,live:(id,nickname,score,tier,active)=>rpc('am_live_update',{p_round:id,p_nickname:nickname,p_score:score,p_max_tier:tier,p_active:active}),liveList:()=>rpc('am_live_snapshot',{},false),start:()=>rpc('am_start_round'),checkpoint:(id,nickname,events,duration)=>rpc('am_checkpoint_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),submit:(id,nickname,events,duration)=>rpc('am_submit_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),list:async scope=>{
   // Public browsing doesn't create an account; use a stored identity for your rank.
   let hasSession=Boolean(session);try{hasSession ||= Boolean(JSON.parse(store.get(sessionKey))?.refresh_token);}catch{}
   return rpc('am_leaderboard',{p_scope:scope},hasSession);
  }};
 }
-export const scoreApi=createScoreApi(SCORE_CONFIG);const api=scoreApi;let current=null,pending=null,scope='week',loadVersion=0,saving=false;
+export const scoreApi=createScoreApi(SCORE_CONFIG);const api=scoreApi;let scope='week',loadVersion=0;
 let nickname=storage.get('almind-score-nickname')||'';
 function message(text){$('#score-save-status').textContent=text;}
 function renderRows(rows){
@@ -39,7 +40,7 @@ function renderRows(rows){
  for(const row of rows){
   const li=document.createElement('li');li.className='highscore-row';if(row.is_me)li.classList.add('is-me');
   const rank=document.createElement('span');rank.className='highscore-rank';rank.textContent=Number(row.place)<=3?['🥇','🥈','🥉'][Number(row.place)-1]:`#${row.place}`;
-  const person=document.createElement('span'),name=document.createElement('strong'),detail=document.createElement('small');name.textContent=row.nickname+(row.is_me?' · dig':'');detail.textContent=NAMES[row.max_tier]||'';person.append(name,detail);
+  const person=document.createElement('span'),name=document.createElement('strong');name.textContent=row.nickname;person.append(name);
   const points=document.createElement('b');points.textContent=fmt.format(row.score);li.append(rank,person,points);list.append(li);
  }
 }
@@ -48,39 +49,32 @@ export async function refreshLeaderboard(){
  try{const rows=await api.list(scope);if(version!==loadVersion)return;renderRows(rows);$('#highscore-status').textContent=rows.length?'':'Ingen rekorder endnu. Bliver din den første?';}
  catch{if(version!==loadVersion)return;renderRows([]);$('#highscore-status').textContent=api.ready?'Listen kunne ikke hentes. Prøv Opdater igen.':'Den fælles liste åbner snart. Du kan stadig spille og gemme din lokale rekord.';}
 }
-async function savePending(){
- if(saving||!pending||!validNickname(nickname))return;
- const item=pending;saving=true;$('#score-profile-save').disabled=true;message('Gemmer din score…');
- try{
-  const ticket=await item.ticket;
-  if(!ticket||item.invalid)throw new Error('Denne runde kunne ikke forbindes til listen. Spil en ny runde, når der er forbindelse.');
-  // The game starts immediately, but obtaining a server ticket can be slow.
-  // Wait out that delay before submitting, keeping the server clock check strict.
-  const delay=Math.max(0,item.duration-(performance.now()-ticket.readyAt)-1000);
-  if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
-  await api.submit(ticket.id,nickname,item.events,item.duration);
-  if(pending===item){pending=null;$('#score-profile-save').textContent='Gem navn';message(`Din score på ${fmt.format(item.score)} er gemt!`);}
-  await refreshLeaderboard();
- }catch(e){if(pending===item)message(e.message.includes('Denne runde')?e.message:'Scoren kunne ikke gemmes. Tryk Gem score for at prøve igen.');}
- finally{saving=false;$('#score-profile-save').disabled=false;}
-}
+const autosave=createScoreAutosave({api,store:storage,onStatus:message,onSaved:()=>{if(!document.body.classList.contains('playing'))refreshLeaderboard();}});
 export function scoreRoundStart(){
- current={events:[],invalid:false,ticket:api.ready?api.start().then(id=>({id,readyAt:performance.now()})).catch(()=>null):Promise.resolve(null)};
- pending=null;$('#score-result-open').hidden=true;$('#score-profile-save').textContent='Gem navn';message('');
+ autosave.start(nickname);$('#score-result-open').hidden=true;message('Din rekord gemmes automatisk undervejs.');
 }
-export function scoreEvent(kind,tier,time){
- if(!current)return;if(current.events.length>=20000){current.invalid=true;return;}
- current.events.push([kind,tier,Math.round(time*1000)]);
+export const scoreEvent=(kind,tier,time)=>autosave.event(kind,tier,time);
+export function scoreRoundEnd(round,time){autosave.end(time);$('#score-result-open').hidden=false;}
+export const flushScore=()=>autosave.flush();
+let beginAfterName=null;
+export function requirePlayerName(begin){
+ if(validNickname(nickname))return true;
+ beginAfterName=begin;$('#player-name').showModal();$('#player-name-input').focus();return false;
 }
-export function scoreRoundEnd(round,time){
- if(!current)return;pending={...current,events:[...current.events],score:round.score,duration:Math.round(time*1000)};current=null;
- $('#score-result-open').hidden=false;$('#score-profile-save').textContent='Gem score';
- message(nickname?'Gemmer din runde…':'Skriv dit kaldenavn for at gemme denne rundes score.');
- if(nickname)savePending();
-}
+function rememberName(value){nickname=value;storage.set('almind-score-nickname',value);$('#score-nickname').value=value;}
 export function initLeaderboard(){
  $('#score-nickname').value=nickname;
- $('#score-profile').addEventListener('submit',e=>{e.preventDefault();const value=$('#score-nickname').value.trim();if(!validNickname(value)){message('Brug 2–20 bogstaver, tal, mellemrum, _ eller -.');return;}nickname=value;storage.set('almind-score-nickname',value);if(pending)savePending();else message(`Hej ${value}! Din næste færdige runde gemmes på listen.`);});
+ $('#score-profile').addEventListener('submit',e=>{e.preventDefault();const value=$('#score-nickname').value.trim();if(!validNickname(value)){message('Brug 2–20 bogstaver, tal, mellemrum, _ eller -.');return;}rememberName(value);message(`Hej ${value}! Dit navn huskes i denne browser.`);});
+ $('#player-name-form').addEventListener('submit',e=>{
+  e.preventDefault();const value=$('#player-name-input').value.trim();
+  if(!validNickname(value)){$('#player-name-error').textContent='Brug 2–20 bogstaver, tal, mellemrum, _ eller -.';return;}
+  rememberName(value);$('#player-name').close();const begin=beginAfterName;beginAfterName=null;begin?.();
+ });
+ setInterval(flushScore,5000);
+ window.addEventListener('online',flushScore);
+ window.addEventListener('pagehide',flushScore);
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)flushScore();});
+ flushScore();
  for(const button of document.querySelectorAll('[data-score-scope]'))button.onclick=()=>{scope=button.dataset.scoreScope;for(const b of document.querySelectorAll('[data-score-scope]'))b.setAttribute('aria-pressed',String(b===button));refreshLeaderboard();};
  $('#highscore-refresh').onclick=refreshLeaderboard;
  $('#score-result-open').onclick=()=>{$('#highscores').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});$('#score-nickname').focus({preventScroll:true});};
@@ -99,5 +93,5 @@ export function initLeaderboard(){
  refreshLeaderboard();
 }
 
-export const liveRoundTicket=()=>current?.ticket||Promise.resolve(null);
+export const liveRoundTicket=()=>autosave.ticket();
 export const liveNickname=()=>nickname;

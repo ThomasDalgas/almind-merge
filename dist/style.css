@@ -365,3 +365,5 @@ body.playing .announcement-slot{display:block;grid-column:1/-1;order:-1;flex:non
 #live-announcement[data-kind="record"]{background:#ffdb69}
 body.touch-device.playing main{--board-width:min(100%,calc((var(--game-space) - 232px) * .709677))}
 @media(prefers-reduced-motion:reduce){#live-announcement{transition:none}}
+
+#player-name{width:min(440px,94vw);border:2px solid #e9bd40;background:linear-gradient(145deg,#f9f8df,#d5e9df);color:#12475a;padding:28px;box-shadow:0 24px 80px #103d5270}#player-name h2{font-size:32px;margin:12px 0}#player-name p{font-size:14px;line-height:1.6}#player-name label{display:block;font-weight:750;margin:20px 0 8px}#player-name-input{width:100%;padding:14px;border:2px solid #58abae;border-radius:12px;background:#fffef4;font-size:18px;color:#12475a}#player-name .button{width:100%;justify-content:center;background:#ffd66b;border:1px solid #c89e26;color:#12475a}#player-name-error{color:#a72f2f;min-height:1em}

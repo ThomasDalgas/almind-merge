@@ -14,13 +14,13 @@ Status: tilsluttet det separate Almind-Merge-projekt (`sxzncydqjdwnkmbypeeu`, eu
 
 - Top 10 for denne uge og alle tider. Kun bedste runde pr. anonym spillerprofil.
 - Egen placering vises også uden for Top 10, når den browser har en profil.
-- Ugen begynder mandag kl. 00:00 i Europe/Copenhagen, inkl. sommertid. Afslutningstidspunkt på serveren bestemmer ugen.
-- Samme score afgøres af tidligste afslutning, derefter stabil spiller-id-sortering.
+- Ugen begynder mandag kl. 00:00 i Europe/Copenhagen, inkl. sommertid. Tidspunktet for seneste pointforbedring på serveren bestemmer ugen.
+- Samme score afgøres af tidligste gemte pointforbedring, derefter stabil spiller-id-sortering.
 - Kaldenavn 2–20 bogstaver/tal, mellemrum, bindestreg eller underscore. Navne er ikke unikke/verificerede. HTML fortolkes aldrig.
-- Navnet og afsluttede runder bliver offentlige, når spilleren gemmer navnet/scoren. Identitet og navn huskes i browseren, ikke på tværs af enheder. Rydning af browserdata giver en ny profil.
+- Navnet og validerede rekorder bliver offentlige undervejs. Før første spil spørges efter navn i en modal. Identitet og navn huskes i browseren, ikke på tværs af enheder. Rydning af browserdata giver en ny profil.
 - Eksisterende lokale rekorder uploades ikke. Kun nye runder med serverudstedt runde-id kan indsendes.
 - Rundestart blokerer ikke spillet. Ved langsomt login venter indsendelsen kort på serverens ur, så legitime runder stadig består varighedskontrollen.
-- Spillet virker uden net. Lokal rekord bevares. En mislykket indsendelse kan prøves igen, mens resultatet stadig vises; start af ny runde eller genindlæsning kasserer det ventende resultat.
+- Spillet virker uden net. Lokal rekord bevares. Hændelser gemmes straks i en lokal kø pr. runde. Hvert femte sekund samt ved pause og afslutning forsøges upload. Afbrudte uploads genoptages ved genåbning eller genforbindelse. En ny runde kasserer ikke den gamle kø.
 
 ## Kontrol og begrænsninger
 
@@ -38,7 +38,7 @@ Brug Supabases Table Editor som ejer, aldrig en adminnøgle i spillet:
 - `am_players.blocked=true` skjuler spillerens resultater og afviser nye runder/indsendelser.
 - Ret `am_players.nickname` for at moderere et navn. En ikke-blokeret spiller kan ændre navnet igen ved næste indsendelse.
 
-Uafsluttede rundebilletter er ikke synlige på listen. Overvåg lagring og ryd gamle uafsluttede billetter op efter behov med ejeradgang.
+Uafsluttede runder med et valideret checkpoint er synlige på listen; tomme rundebilletter er ikke. Overvåg lagring og ryd gamle uafsluttede billetter op efter behov med ejeradgang.
 
 ## Lokale kontroller
 
@@ -60,8 +60,14 @@ Migration `202610140002_live_players.sql` er anvendt på Almind-Merge-projektet.
 - Navn hentes fra spillerens gemte kaldenavn, ellers et stabilt `Gæst XXXX`-navn. Livepoint er foreløbige og klientrapporterede; de kan aldrig indsættes som highscore via livefunktionen.
 - Serveren kontrollerer rundeejerskab, værdigrænser, afslutning, skjulning og blokering. Begge nye tabeller har RLS og ingen direkte browseradgang. Midlertidige sessioner ryddes efter en times udløb, rekordhændelser efter et døgn ved næste relevante skrivning.
 - Flere faner for samme profil vises som én spiller (senest startede aktive runde). Afmelding af en gammel runde fjerner ikke en nyere rundes session. Højst de 50 førende samt egen spiller vises; tælleren angiver samlet antal.
-- Serverens afslutningstrigger giver én besked ved en **streng forbedring** af total- eller ugerekorden. Totalrekord har prioritet, lighed giver ingen besked. Ugen følger Europe/Copenhagen. Hændelser fra skjulte/blokerede spillere vises ikke.
+- Serverens checkpoint-/afslutningstrigger giver højst én besked pr. runde ved en **streng forbedring** af total- eller ugerekorden. Totalrekord har prioritet, lighed giver ingen besked. Ugen følger Europe/Copenhagen. Hændelser fra skjulte/blokerede spillere vises ikke.
 - Første tilslutning/genforbindelse etablerer en baseline uden gamle velkomst-/rekordbeskeder. Senere hændelser vises i en fast plads over banen i 3 sekunder, derefter foldes de op. Ingen overlap med canvas eller flytning af banen. Køen er begrænset til tre ventende beskeder med rekordprioritet; pause tømmer den.
 - Livefunktionen fejler uafhængigt af selve spillet. Ved forbindelsesfejl ryddes forældede spillere lokalt og der vises forbindelsesstatus.
 
 Kontroller: `npm test` inkluderer netværksrækkefølge, forsinket billet, fejlet genstart samt beskedtiming/kø. `tests/live-db.mjs` bruger PGlite til ejerskab, udløb, flere faner, rekordhændelser og moderation. `tests/live-integration.mjs` bruger samme lokale database med to uafhængige browserprofiler og tester point, join/rekordbeskeder, pause, offline/genforbindelse og at banen ikke flyttes/dækkes. Begge bruger samme miljøvariabler som de øvrige database-/browsertests. En separat kontrol på online Supabase verificerede to midlertidige spillere og faktisk 20-sekunders udløb uden at indsende highscores.
+
+## Løbende rekorder (migration 003)
+
+`202610140003_checkpoint_scores.sql` tilføjer `saved_at` og `am_checkpoint_round`. Både checkpoints og slutresultater genberegnes med samme validator; et ældre checkpoint kan aldrig sænke scoren, og en afsluttet runde kan ikke ændres. Eksisterende rekorder bevares. Navne er stadig ikke unikke: forskellige enheder/profiler kan hedde Niklas uden at deres konti sammenlægges.
+
+Kør `tests/checkpoint-db.mjs` og `tests/checkpoint-integration.mjs` med samme PGLite/Playwright-miljøvariabler. Sidstnævnte tester navnemodal, genbrug af identitet, gemning før Game Over og offline-genåbning.

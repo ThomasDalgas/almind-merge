@@ -13,6 +13,7 @@ try{
   return route.fulfill({json:null});
  });
  await page.addInitScript(()=>{Element.prototype.requestFullscreen=()=>Promise.reject(new Error('Test without fullscreen'));});
+ await page.addInitScript(()=>localStorage.setItem('almind-score-nickname','Testspiller'));
  await page.goto(BASE_URL+'/?test=1');
  await page.waitForFunction(()=>window.__mergeTest?.ready);
  await page.waitForFunction(()=>document.querySelector('.highscore-row b')?.textContent==='100');
