@@ -73,10 +73,22 @@ function effectTone(frequency,endFrequency,delay,duration,volume,type='sine',for
  osc.connect(gain);gain.connect(audioCtx.destination);osc.start(at);osc.stop(at+duration+.02);activeAudio.push(osc);
  osc.onended=()=>{activeAudio=activeAudio.filter(s=>s!==osc);osc.disconnect();gain.disconnect();};
 }
-function gameOverSound(){
- // A descending wah-wah followed by a rubbery little boing.
- [330,277,220].forEach((f,i)=>effectTone(f,f*.72,i*.16,.23,.07,'triangle'));
- effectTone(150,58,.5,.42,.09,'triangle');effectTone(420,105,.63,.3,.04);
+async function recordedBuffer(sound){
+ let buffer=audioBuffers.get(sound);
+ if(!buffer){const response=await fetch(sound);if(!response.ok)throw new Error('Audio unavailable');buffer=await audioCtx.decodeAudioData(await response.arrayBuffer());audioBuffers.set(sound,buffer);}
+ return buffer;
+}
+async function gameOverSound(){
+ if(!soundOn)return;ensureAudio();if(!audioCtx)return;
+ const generation=audioGeneration;
+ try{
+  const buffer=await recordedBuffer('assets/game-over-voice.m4a');
+  if(generation!==audioGeneration||mode!=='over'||!soundOn)return;
+  const source=audioCtx.createBufferSource(),gain=audioCtx.createGain(),at=audioCtx.currentTime,duration=buffer.duration;
+  source.buffer=buffer;gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(.6,at+.025);gain.gain.setValueAtTime(.6,at+duration-.03);gain.gain.linearRampToValueAtTime(0,at+duration);
+  source.connect(gain).connect(audioCtx.destination);source.start(at);source.stop(at+duration);activeAudio.push(source);
+  source.onended=()=>{activeAudio=activeAudio.filter(s=>s!==source);source.disconnect();gain.disconnect();};
+ }catch{if(generation===audioGeneration&&mode==='over')effectTone(150,58,0,.42,.09,'triangle');}
 }
 function celebrationSound(level,force=false){
  effectTone(190+level*35,42,0,.15+level*.025,.12,'sine',force);
@@ -84,14 +96,14 @@ function celebrationSound(level,force=false){
 }
 async function tileSound(tier,force=false){
   const generation=audioGeneration;
-  if(!soundOn&&!force)return;if(tier>=7){celebrationSound(tier-6,force);return;}ensureAudio();if(!audioCtx)return;
+  if(!soundOn&&!force)return;ensureAudio();if(!audioCtx)return;
   const now=audioCtx.currentTime;if(!force&&now-lastSound<.065)return;lastSound=now;
   const tile=tiles[tier];
-  const sound=tile.sound||({1:'assets/silas-merge.m4a',2:'assets/niklas-merge.m4a',3:'assets/elias-merge-v2.m4a',6:'assets/tina-merge.m4a'}[tier]??null);
+  const sound=tile.sound||({1:'assets/silas-merge.m4a',2:'assets/niklas-merge.m4a',3:'assets/elias-merge-v2.m4a',6:'assets/tina-merge.m4a',9:'assets/helle-merge.m4a',10:'assets/svend-merge.m4a'}[tier]??null);
+  if(tier>=7&&!sound){celebrationSound(tier-6,force);return;}
   if(sound){
     try{
-      let buffer=audioBuffers.get(sound);
-      if(!buffer){const response=await fetch(sound);buffer=await audioCtx.decodeAudioData(await response.arrayBuffer());audioBuffers.set(sound,buffer);}
+      const buffer=await recordedBuffer(sound);
       if(generation!==audioGeneration||(force&&!$('#portrait').open)||(!force&&(mode!=='playing'||!soundOn)))return;
       if(activeAudio.length>=4){try{activeAudio.shift().stop();}catch{}}
       const source=audioCtx.createBufferSource();source.buffer=buffer;const gain=audioCtx.createGain();const at=audioCtx.currentTime,duration=Math.min(buffer.duration,8),fade=Math.min(.025,duration/3);gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(.6,at+fade);gain.gain.setValueAtTime(.6,at+duration-fade);gain.gain.linearRampToValueAtTime(0,at+duration);source.connect(gain).connect(audioCtx.destination);source.start(at);source.stop(at+duration);activeAudio.push(source);source.onended=()=>{activeAudio=activeAudio.filter(x=>x!==source);};
@@ -196,6 +208,7 @@ function start(){
   if(!assetsReady)return;
   if(!requirePlayerName(start))return;
   scoreRoundStart();
+  ensureAudio();if(audioCtx)recordedBuffer('assets/game-over-voice.m4a').catch(()=>{});
   document.body.classList.add('started');fireworks=[];dangerProgress=0;$('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');
   stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound();powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
 }
