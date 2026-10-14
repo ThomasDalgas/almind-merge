@@ -17,7 +17,7 @@ Den offentlige udgave bruger familiens faste 11 figurer. Brikværksted og import
 - Point ved drop er den droppede briks værdi; point ved merge er resultatets værdi.
 - De første fire drops er type 0. Derefter vælges næste type fra `[0, min(max(maxTier, 3), 5))`.
 - Minimum 0,5 sekund mellem drops.
-- Fem kontinuerlige spilsekunder over topgrænsen afslutter runden. Pause, skjult fane og brikværksted fryser simuleringen.
+- 15 kontinuerlige spilsekunder over topgrænsen afslutter runden. Pause, skjult fane og brikværksted fryser simuleringen.
 
 ## Filer
 
@@ -33,8 +33,8 @@ Med den lokale server kørende: `node tests/browser.mjs` og `node tests/polygon-
 
 Spil: https://thomasdalgas.github.io/almind-merge/
 
-Push til main kører npm test og publicerer dist/ automatisk. Rekorder er lokale for browser og domæne.
+Push til main kører npm test og publicerer dist/ automatisk. Lokal rekord bevares i browseren. Fælles highscore er forberedt med Supabase; se [opsætning og status](supabase/README.md).
 
 ## Hjælpemidler
 
-Hver runde starter med én Ryst og én Fjern. For hver 1.000 point gives én ekstra af hver. Ryst giver bunken et kort fysisk skub; Fjern vælges og bruges ved at trykke på en brik. Tomme tryk bruger ingen ladning. Tryk Fjern igen for at annullere. Hjælpemidler nulstilles ved en ny runde.
+Hver runde starter med én Ryst og én Fjern. Ved 6.000 point gives én Fjern, ved 12.000 én Ryst, ved 18.000 én Fjern osv. Ryst giver bunken et kort fysisk skub; Fjern vælges og bruges ved at trykke på en brik. Tomme tryk bruger ingen ladning. Tryk Fjern igen for at annullere. Hjælpemidler nulstilles ved en ny runde.
