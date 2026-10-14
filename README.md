@@ -33,8 +33,18 @@ Med den lokale server kørende: `node tests/browser.mjs` og `node tests/polygon-
 
 Spil: https://thomasdalgas.github.io/almind-merge/
 
-Push til main kører npm test og publicerer dist/ automatisk. Lokal rekord bevares i browseren. Fælles highscore er forberedt med Supabase; se [opsætning og status](supabase/README.md).
+Push til main kører npm test og publicerer dist/ automatisk. Lokal rekord bevares i browseren. Fælles highscore er tilsluttet Supabase; se [opsætning og status](supabase/README.md).
 
 ## Hjælpemidler
 
 Hver runde starter med én Ryst og én Fjern. Ved 6.000 point gives én Fjern, ved 12.000 én Ryst, ved 18.000 én Fjern osv. Ryst giver bunken et kort fysisk skub; Fjern vælges og bruges ved at trykke på en brik. Tomme tryk bruger ingen ladning. Tryk Fjern igen for at annullere. Hjælpemidler nulstilles ved en ny runde.
+
+## Telefon, iPad og hjemmeskærm
+
+Start spil forsøger at åbne dokumentet i fuldskærm og låse orienteringen til portrait på touch-enheder. Native API-kald er valgfrie; afvisning stopper ikke spillet. Hvis en aktiv mobilrunde vises i landscape, pauses fysik og fare-timer, og en vend-skærmen-besked vises. Tilbage i portrait fortsættes med Spil videre. Pause giver adgang til resten af siden.
+
+Aktivt spil bruger den tilgængelige dynamiske viewport med safe-area-plads. Pinch og dobbelttryk begrænses med viewport, touch-action og gesture-fallback. Browserens og styresystemets tilgængelighedsindstillinger kan stadig tilsidesætte zoombegrænsning.
+
+Safari: Del → Føj til hjemmeskærm. Manifest og Apple-metadata åbner spillet som standalone; Apple-ikonet er 180×180 og manifestikonet 512×512. Begge bruger det eksisterende familielogo på en uigennemsigtig baggrund. Et tidligere gemt gråt ikon skal typisk fjernes og tilføjes igen. Ingen offline/service-worker-cache er tilføjet.
+
+`GAME_TEST_URL=http://127.0.0.1:4188 PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/mobile-display-browser.mjs` tester seks touch-viewports, drag, tofinger-input, landscape-pause, tilbagevenden, menuscroll og desktop. Native fullscreen/orientation-kald testes med understøttet/afvist API-simulering; de erstatter ikke en fysisk Safari-enhedstest. Testen blokerer online Supabase-kald.

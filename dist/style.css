@@ -303,3 +303,40 @@ body.playing .highscores{display:none}
 .overlay.game-over #game-over-logo{max-height:46%}.overlay.game-over .overlay-foot{margin-top:6px}
 @media(max-width:500px){.highscores{padding:20px 16px;margin-top:32px}.highscore-heading h2{font-size:23px}.score-tabs button{padding:10px 12px}.highscore-row{gap:6px}.score-profile-fields{gap:6px}}
 @media(max-height:500px){.overlay.game-over #game-over-logo{max-height:40%}.score-result-link{padding:4px;margin:0}}
+
+/* Touch devices use the entire available viewport, including large iPads. */
+body.touch-device{touch-action:pan-y}
+body.touch-device button,body.touch-device a{touch-action:manipulation}
+body.touch-device input{font-size:16px}
+.icon-button[hidden],.rotate-screen[hidden],.install-tip[hidden]{display:none}
+.install-tip{max-width:660px;margin:24px auto;padding:14px 18px;border:1px solid #6195a4;border-radius:14px;background:#fff8df;color:#143f50;font-size:14px;line-height:1.6}
+body.playing .install-tip{display:none}
+body.touch-device.playing{position:fixed;inset:0;width:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none}
+body.touch-device.playing .topbar{display:none}
+body.touch-device.playing main{
+ --game-space:calc(100dvh - max(6px,env(safe-area-inset-top)) - max(10px,env(safe-area-inset-bottom)));
+ --board-width:min(100%,calc((var(--game-space) - 128px) * .709677));
+ max-width:none;width:100%;height:100dvh;margin:0;overflow:hidden;
+ padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+}
+body.touch-device.playing .play-layout{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;padding:0}
+body.touch-device.playing .arena-section{order:0;flex:none;width:var(--board-width);max-width:none;justify-self:auto}
+body.touch-device.playing .arena-toolbar{height:44px;padding:0 0 6px;gap:4px}
+body.touch-device.playing .arena-toolbar .icon-button{width:36px;height:34px;font-size:23px}
+body.touch-device.playing .power-button{padding:6px;font-size:12px}
+body.touch-device.playing .arena-wrap{width:100%;height:auto;max-width:none;max-height:none;aspect-ratio:440/620;margin:0;border-width:3px;border-radius:16px}
+body.touch-device.playing .left-rail{order:1;flex:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);width:var(--board-width);gap:8px;padding:0;align-self:center}
+body.touch-device.playing .score-card,body.touch-device.playing .next-card{position:relative;height:68px;min-height:68px;margin:0;padding:5px 8px;border-top-width:3px;text-align:left}
+body.touch-device.playing .label,body.touch-device.playing .next-card .label{font-size:10px}
+body.touch-device.playing .score-number{font-size:26px;margin:0;letter-spacing:-1px;line-height:1.1}
+body.touch-device.playing .record{position:static;display:flex;flex-direction:row;justify-content:flex-start;gap:5px;border:0;padding:0;font-size:10px;line-height:1.1}
+body.touch-device.playing .record strong{font-size:11px}
+body.touch-device.playing .next-card canvas{position:absolute;width:80px;height:60px;right:1px;bottom:0;margin:0}
+body.touch-device.playing .next-card strong{font-size:12px;max-width:calc(100% - 75px);margin-top:8px}
+body.touch-device.playing .value-label{font-size:10px;margin-top:2px}
+body.touch-device.playing .arena-caption,body.touch-device.playing .collection{display:none}
+.rotate-screen{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px max(24px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));background:linear-gradient(145deg,#084860,#087f8c);color:#fff7d5;touch-action:none}
+.rotate-screen h2{font-size:clamp(22px,4vw,36px);margin:8px 0}
+.rotate-screen p{line-height:1.6;margin:8px 0 18px}
+.rotate-phone{font-size:60px;color:#ffd35a;line-height:1}
+.rotate-screen .button{font-size:14px;padding:10px 20px}
