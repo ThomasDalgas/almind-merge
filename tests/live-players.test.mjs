@@ -48,3 +48,15 @@ test('Live polling uses 5 seconds while playing, 15 while paused, and stops when
  t.mock.timers.tick(14999);await flush();assert.equal(calls.length,3);t.mock.timers.tick(1);await flush();assert.equal(calls.length,4);
  shown=false;live.changed();await flush();const count=calls.length;t.mock.timers.tick(60000);await flush();assert.equal(calls.length,count);
 });
+
+test('Own presence failure still displays public players with an honest status',async()=>{
+ let mode='playing';const renders=[];
+ const snapshot={players:[{nickname:'Niklas',score:123}],records:[]};
+ const live=createLivePlayers({api:{live:async()=>{throw new Error('Unknown round');},liveList:async()=>snapshot},getTicket:async()=>({id:'r'}),getState:()=>({mode,score:4,maxTier:1}),getNickname:()=> 'Thomas',render:(...args)=>renders.push(args),visible:()=>false,online:()=>true});
+ live.changed();await flush();assert.equal(renders[0][1],'readonly');assert.deepEqual(renders[0][0].players,snapshot.players);assert.equal(renders[0][0].connectionError,'Unknown round');
+});
+test('Fallback response is discarded after lifecycle change',async()=>{
+ let mode='playing',release;const renders=[];
+ const live=createLivePlayers({api:{live:async()=>{throw new Error('failure');},liveList:()=>new Promise(r=>release=r)},getTicket:async()=>null,getState:()=>({mode}),getNickname:()=>'',render:(...args)=>renders.push(args),visible:()=>false,online:()=>true});
+ live.changed();await flush();mode='over';live.changed();release({players:[{nickname:'stale'}]});await flush();assert.equal(renders.length,0);release({players:[]});await flush();assert.equal(renders[0][1],'idle');
+});

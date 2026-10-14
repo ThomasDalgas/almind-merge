@@ -14,12 +14,20 @@ export function createLivePlayers({api,getTicket,getState,getNickname,render,vis
    if(lastRound&&id!==lastRound)await api.live(lastRound,'',0,0,false);
    if(revision!==version)return;
    lastRound=id;
-   if(active&&!id){render([],'offline');return;}
+   if(active&&!id)throw new Error('Runden er ikke tilsluttet. Prøv at starte en ny runde.');
    const rows=id?await api.live(id,getNickname(),now.score,now.maxTier,active):await api.liveList();
    if(revision!==version)return;
    if(now.mode==='over'||now.mode==='ready'){lastRound=null;render([],'idle');}
    else render(rows,'connected');
-  }catch{if(revision===version)render([],'offline');}
+  }catch(error){
+   if(revision!==version)return;
+   // Reading other players must not depend on publishing this device's round.
+   try{
+    const snapshot=await api.liveList();if(revision!==version)return;
+    if(['ready','over'].includes(getState().mode))render([],'idle');
+    else render({...snapshot,connectionError:error.message||'Din egen score kunne ikke deles.'},'readonly');
+   }catch{if(revision===version)render([],'offline');}
+  }
   finally{
    busy=false;
    if(dirty){void tick();}
@@ -32,7 +40,7 @@ export function renderLivePlayers(snapshot,status){
  const rows=snapshot.players||[];
  const list=document.querySelector('#live-players'),label=document.querySelector('#live-status'),panel=document.querySelector('#live-panel');
  panel.dataset.connection=status;
- const text=status==='offline'?'Live · forbindelsen afbrudt':status==='idle'?'Live · klar til næste runde':`Spiller nu · ${rows[0]?.total_players||0}`;
+ const text=status==='offline'?'Live · forbindelsen afbrudt':status==='idle'?'Live · klar til næste runde':status==='readonly'?'Live · egen score ikke delt':`Spiller nu · ${rows[0]?.total_players||0}`;
  if(label.textContent!==text)label.textContent=text;
  // Keep scrolling stable while scores update. Never interpret names as HTML.
  const scroll=list.scrollLeft,fragment=document.createDocumentFragment();
@@ -41,6 +49,9 @@ export function renderLivePlayers(snapshot,status){
   const name=document.createElement('span'),score=document.createElement('b');name.textContent=row.nickname+(row.is_me?' · dig':'');score.textContent=fmt.format(row.score);chip.title=`${name.textContent}: ${score.textContent} point`;chip.append(name,score);fragment.append(chip);
  }
  if(!rows.length){const empty=document.createElement('span');empty.className='live-empty';empty.textContent=status==='offline'?'Du kan stadig spille videre.':status==='idle'?'Se de andre, når du spiller.':'Ingen andre spiller lige nu.';fragment.append(empty);}
+ if(status==='readonly'){
+  const note=document.createElement('span');note.className='live-empty';note.textContent=snapshot.connectionError;fragment.append(note);
+ }
  list.replaceChildren(fragment);list.scrollLeft=scroll;
 }
 
