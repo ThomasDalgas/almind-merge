@@ -1,7 +1,7 @@
 import {findBallEscape} from './ball-collision.js?v=ball-fix-v1';
-import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=live-players-v1';
+import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=low-traffic-v1';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=player-codes-v1';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=low-traffic-v1';
 import {VALUES,CLEAR_PAIR,TOP_WAIT,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=svend-clear-v1';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=gallery-v1';
 const $=s=>document.querySelector(s);

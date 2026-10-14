@@ -1,0 +1,21 @@
+import fs from 'node:fs/promises';import assert from 'node:assert/strict';
+const {PGlite}=await import(process.env.PGLITE_MODULE);const db=new PGlite();
+await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;`);
+for(const f of (await fs.readdir(new URL('../supabase/migrations/',import.meta.url))).sort())await db.exec(await fs.readFile(new URL('../supabase/migrations/'+f,import.meta.url),'utf8'));
+const [a,b,c,d]=Array.from({length:4},(_,i)=>`00000000-0000-4000-8000-00000000000${i+1}`);
+for(const id of [a,b,c,d])await db.query('insert into auth.users values($1)',[id]);
+await db.query("insert into public.am_players(id,nickname) values($1,'Thomas'),($2,'ThomasMac'),($3,'Niklas')",[a,b,c]);
+await db.query("insert into public.am_rounds(player_id,device_id,score,saved_at) values($1,$1,18662,now()),($2,$2,22896,now()),($3,$3,22430,now())",[a,b,c]);
+await db.query('insert into public.am_player_devices(device_id,player_id) values($1,$2)',[d,b]);
+await db.query("insert into public.am_player_codes(player_id,code_hash) values($1,'original-code')",[b]);
+const round=(await db.query('insert into public.am_rounds(player_id,device_id) values($1,$2) returning id',[b,d])).rows[0].id;
+const script=await fs.readFile(new URL('../supabase/merge-thomas-profiles.sql',import.meta.url),'utf8');await db.exec(script);
+const rows=(await db.query("select * from public.am_leaderboard('all')")).rows;
+assert.deepEqual(rows.map(r=>[r.nickname,r.score]),[['Thomas',22896],['Niklas',22430]]);
+assert.equal((await db.query('select count(*) as n from public.am_rounds')).rows[0].n,4,'no history lost');
+assert.equal((await db.query('select code_hash from public.am_player_codes where player_id=$1',[a])).rows[0].code_hash,'original-code');
+const as=async id=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated');};
+for(const id of [a,b,d]){await as(id);const p=(await db.query('select public.am_player_profile() as p')).rows[0].p;assert.equal(p.id,a);assert.equal(p.nickname,'Thomas');assert.equal(p.best,22896);}
+await db.query("select public.am_checkpoint_round($1,'ThomasMac',$2,1)",[round,JSON.stringify([['d',0,0]])]);
+await db.exec('reset role');await db.query("update public.am_players set nickname='ThomasMac' where id=$1",[c]);await db.exec(script);assert.equal((await db.query('select name_claimed from public.am_players where id=$1',[c])).rows[0].name_claimed,true,'rerun never merges a later reuse of the old name');
+console.log('PASS merge preserves max score/history/queued round, all devices resolve Thomas, source code fallback, rerun cannot affect another profile');await db.close();

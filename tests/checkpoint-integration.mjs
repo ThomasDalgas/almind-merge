@@ -17,7 +17,7 @@ try{
  await p.waitForSelector('.live-player');
  const identity=await p.evaluate(()=>JSON.parse(localStorage.getItem('almind-score-session:http://127.0.0.1:4192')).user.id);
  await p.evaluate(()=>window.__mergeTest.drop());await p.waitForTimeout(650);await p.evaluate(()=>window.__mergeTest.drop());
- await p.waitForFunction(()=>document.querySelector('#score-save-status').textContent.includes('er gemt'),{},{timeout:15000});
+ await p.waitForFunction(()=>document.querySelector('#score-save-status').textContent.includes('er gemt'),{},{timeout:25000});
  await p.evaluate(()=>window.__mergeTest.pause());
  await p.waitForFunction(()=>document.querySelector('.highscore-row b')?.textContent==='8');
  assert.equal(await p.locator('.highscore-row small').count(),0);

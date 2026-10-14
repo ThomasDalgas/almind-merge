@@ -38,3 +38,13 @@ test('Records keep priority when joins arrive during a fold; pause cancels all p
  t.mock.timers.tick(3000);notices.observe({players:[me,one,two],records:[{id:'r',kind:'all',nickname:'En',score:100}]},'connected');t.mock.timers.tick(200);assert.deepEqual(shown,['join','record']);
  notices.clear();t.mock.timers.tick(10000);assert.deepEqual(shown,['join','record']);assert.ok(hidden>=2);
 });
+
+test('Live polling uses 5 seconds while playing, 15 while paused, and stops when hidden',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});let mode='playing',shown=true;const calls=[];
+ const live=createLivePlayers({api:{live:async(...args)=>{calls.push(args);return {players:[]};},liveList:async()=>({players:[]})},getTicket:async()=>({id:'r'}),getState:()=>({mode,score:2,maxTier:0}),getNickname:()=> 'Thomas',render:()=>{},visible:()=>shown,online:()=>true});
+ live.changed();await flush();assert.equal(calls.length,1);
+ t.mock.timers.tick(4999);await flush();assert.equal(calls.length,1);t.mock.timers.tick(1);await flush();assert.equal(calls.length,2);
+ mode='paused';live.changed();await flush();assert.equal(calls.length,3);assert.equal(calls.at(-1)[4],false);
+ t.mock.timers.tick(14999);await flush();assert.equal(calls.length,3);t.mock.timers.tick(1);await flush();assert.equal(calls.length,4);
+ shown=false;live.changed();await flush();const count=calls.length;t.mock.timers.tick(60000);await flush();assert.equal(calls.length,count);
+});

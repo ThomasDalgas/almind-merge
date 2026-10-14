@@ -1,6 +1,6 @@
 const fmt=new Intl.NumberFormat('da-DK');
 // One request at a time; lifecycle changes invalidate old responses and run next.
-export function createLivePlayers({api,getTicket,getState,getNickname,render,visible=()=>!document.hidden,online=()=>navigator.onLine,interval=3000}){
+export function createLivePlayers({api,getTicket,getState,getNickname,render,visible=()=>!document.hidden,online=()=>navigator.onLine,interval=5000,pausedInterval=15000}){
  let busy=false,dirty=false,version=0,timer=null,lastRound=null;
  function changed(){version++;dirty=true;clearTimeout(timer);if(!busy)void tick();}
  async function tick(){
@@ -23,7 +23,7 @@ export function createLivePlayers({api,getTicket,getState,getNickname,render,vis
   finally{
    busy=false;
    if(dirty){void tick();}
-   else if(['playing','paused'].includes(getState().mode)&&visible())timer=setTimeout(()=>{void tick();},interval);
+   else if(['playing','paused'].includes(getState().mode)&&visible())timer=setTimeout(()=>{void tick();},getState().mode==='paused'?pausedInterval:interval);
   }
  }
  return {changed};

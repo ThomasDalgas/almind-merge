@@ -138,10 +138,10 @@ export function initLeaderboard(){
   }catch(error){$('#player-name-error').textContent=error.message||'Navnet kunne ikke gemmes. Prøv igen.';}
   finally{if(button)button.disabled=false;}
  });
- setInterval(flushScore,5000);
+ setInterval(()=>{if(!document.hidden)flushScore();},15000);
  window.addEventListener('online',flushScore);
  window.addEventListener('pagehide',flushScore);
- document.addEventListener('visibilitychange',()=>{if(document.hidden)flushScore();});
+ document.addEventListener('visibilitychange',flushScore);
  flushScore();
  for(const button of document.querySelectorAll('[data-score-scope]'))button.onclick=()=>{scope=button.dataset.scoreScope;for(const b of document.querySelectorAll('[data-score-scope]'))b.setAttribute('aria-pressed',String(b===button));refreshLeaderboard();};
  $('#highscore-refresh').onclick=refreshLeaderboard;
@@ -154,7 +154,7 @@ export function initLeaderboard(){
   boardVisible=entries[0].isIntersecting;
   refreshVisible();
  }).observe($('#highscores'));
- setInterval(refreshVisible,15000);
+ setInterval(refreshVisible,60000);
  window.addEventListener('online',refreshVisible);
  window.addEventListener('focus',refreshVisible);
  document.addEventListener('visibilitychange',refreshVisible);

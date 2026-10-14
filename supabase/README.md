@@ -20,7 +20,7 @@ Status: tilsluttet det separate Almind-Merge-projekt (`sxzncydqjdwnkmbypeeu`, eu
 - Navnet og validerede rekorder bliver offentlige undervejs. Før første spil spørges efter navn i en modal. Identitet og navn huskes i browseren, ikke på tværs af enheder. Rydning af browserdata giver en ny profil.
 - Eksisterende lokale rekorder uploades ikke. Kun nye runder med serverudstedt runde-id kan indsendes.
 - Rundestart blokerer ikke spillet. Ved langsomt login venter indsendelsen kort på serverens ur, så legitime runder stadig består varighedskontrollen.
-- Spillet virker uden net. Lokal rekord bevares. Hændelser gemmes straks i en lokal kø pr. runde. Hvert femte sekund samt ved pause og afslutning forsøges upload. Afbrudte uploads genoptages ved genåbning eller genforbindelse. En ny runde kasserer ikke den gamle kø.
+- Spillet virker uden net. Lokal rekord bevares. Hændelser gemmes straks i en lokal kø pr. runde. Hvert 15. sekund på en synlig side samt ved pause og afslutning forsøges upload. Afbrudte uploads genoptages ved genåbning eller genforbindelse. En ny runde kasserer ikke den gamle kø.
 
 ## Kontrol og begrænsninger
 
@@ -54,7 +54,7 @@ Integrationstesten starter sin egen lokale HTTP-server på port 4186 og PostgreS
 
 ## Spiller nu og beskeder
 
-Migration `202610140002_live_players.sql` er anvendt på Almind-Merge-projektet. Livevisningen bruger de eksisterende browserprofiler og serverudstedte rundebilletter. Et RPC-kald opdaterer egen midlertidige session og returnerer spillere + rekordhændelser cirka hvert tredje sekund. Der er ingen ekstra SDK eller websocket-afhængighed.
+Migration `202610140002_live_players.sql` er anvendt på Almind-Merge-projektet. Livevisningen bruger de eksisterende browserprofiler og serverudstedte rundebilletter. Et RPC-kald opdaterer egen midlertidige session og returnerer spillere + rekordhændelser cirka hvert femte sekund under spil (15 sekunder ved pause). Der er ingen ekstra SDK eller websocket-afhængighed.
 
 - Kun synlige, aktive runder annonceres. Pause, afslutning og skjult side sender en afmelding; ved afbrudt forbindelse udløber sessionen senest 20 sekunder efter sidste serveropdatering. Baggrundsfaner stopper polling.
 - Navn hentes fra spillerens gemte kaldenavn, ellers et stabilt `Gæst XXXX`-navn. Livepoint er foreløbige og klientrapporterede; de kan aldrig indsættes som highscore via livefunktionen.
@@ -91,3 +91,14 @@ Aktiveret af ejeren 14. oktober 2026. API-kontrollen bekræfter de nye kodefunkt
 - To Svend ved kontakt fjernes uden en ny brik og uden ekstra point. Merge-hændelsen valideres som forbrug af to tier-10-brikker. En anden rydning uden to nye Svend afvises.
 
 Testet lokalt: `player-codes-db.mjs`, `svend-clear-db.mjs`, `svend-clear-browser.mjs`, `checkpoint-integration.mjs` med to browserkontekster, almindelige unit tests samt desktop-/mobilvisninger. Integrationstesten opretter koden, afviser en forkert kode, tilknytter en anden browser og kontrollerer fælles rekord efter genindlæsning.
+
+## Forbrug og Thomas-sammenlægning (14. oktober 2026)
+
+- Live: 5 sekunder under spil, 15 under pause, ingen løbende polling i skjulte faner. Tidligere var begge 3 sekunder.
+- Checkpoint: 15 sekunder i synlig fane, samt straks ved pause, Game Over, sideskift, synlighedsskift og genforbindelse. Alle hændelser gemmes fortsat straks lokalt; uændrede logs uploades ikke igen. Tidligere var det 5 sekunder.
+- Ranglisten opdateres automatisk hvert minut, kun når den er synlig og spillet ikke kører. Manuel Opdater, fokus, pause og genforbindelse opdaterer stadig straks. Tidligere var intervallet 15 sekunder.
+- Ved kontinuerlig aktivitet falder de planlagte live-/checkpoint-kald fra højst cirka 1.920 til 960 pr. spilletime; livscykluskald og fejlgenforsøg kommer oveni. Det halverer ikke nødvendigvis faktureret egress, da svarstørrelser og trafik varierer.
+- Den offentlige måling viste 312 byte i live-JSON med to deltagere og 502 byte i highscore-JSON med fire profiler. HTTP-overhead, Auth, andre projekter og månedstotal er ikke målt. Billeder/lyd ligger på GitHub Pages. Den fulde eventlog sendes ind til validering, men gemmes ikke i databasen; hvert checkpoint opdaterer samme runderække.
+- Officielle Free-grænser kontrolleret: 500 MB database pr. projekt, 5 GB uncached egress pr. faktureringscyklus plus separat 5 GB cached egress. Egress er fælles på organisationsniveau. Se https://supabase.com/pricing og https://supabase.com/docs/guides/platform/manage-your-usage/egress . Faktisk forbrug kræver dashboardets Usage-tal.
+
+`merge-thomas-profiles.sql` er **forberedt og lokalt testet, endnu ikke aktiveret**. Den samler aktive ThomasMac i aktive Thomas, flytter runder/enhedstilknytninger, bevarer oprindelig device_id og højeste score, og arkiverer kildeprofilen. Thomas' kode bevares; ellers arves ThomasMacs kode. Operationsloggen gør genkørsel sikker, selv hvis en anden senere tager navnet ThomasMac. Ingen runder slettes. SQL returnerer listen og et størrelsesoverblik efter udførsel. Test: `tests/merge-thomas-db.mjs`.
