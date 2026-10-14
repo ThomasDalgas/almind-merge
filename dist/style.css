@@ -367,3 +367,27 @@ body.touch-device.playing main{--board-width:min(100%,calc((var(--game-space) - 
 @media(prefers-reduced-motion:reduce){#live-announcement{transition:none}}
 
 #player-name{width:min(440px,94vw);border:2px solid #e9bd40;background:linear-gradient(145deg,#f9f8df,#d5e9df);color:#12475a;padding:28px;box-shadow:0 24px 80px #103d5270}#player-name h2{font-size:32px;margin:12px 0}#player-name p{font-size:14px;line-height:1.6}#player-name label{display:block;font-weight:750;margin:20px 0 8px}#player-name-input{width:100%;padding:14px;border:2px solid #58abae;border-radius:12px;background:#fffef4;font-size:18px;color:#12475a}#player-name .button{width:100%;justify-content:center;background:#ffd66b;border:1px solid #c89e26;color:#12475a}#player-name-error{color:#a72f2f;min-height:1em}
+
+/* Fit desktop play to the browser height, not just the available width. */
+@media(min-width:761px){
+ body:not(.touch-device).started .topbar{height:64px}
+ body:not(.touch-device).started main{--desktop-board-width:min(660px,calc((100dvh - 224px) * .709677));padding:12px 24px 16px;height:auto}
+ body:not(.touch-device).started .play-layout{display:grid;grid-template-columns:minmax(150px,210px) minmax(300px,var(--desktop-board-width));justify-content:center;align-items:start;gap:12px 20px;height:auto;padding:0}
+ body:not(.touch-device).started .arena-section{order:0;width:100%;max-width:none}
+ body:not(.touch-device).started .arena-wrap{width:min(100%,var(--desktop-board-width));height:auto;max-height:none;aspect-ratio:440/620;margin:auto}
+ body:not(.touch-device).started .arena-toolbar{height:48px}
+ body:not(.touch-device).started .arena-caption{display:flex;margin-top:12px;font-size:11px}
+ body:not(.touch-device).started .left-rail{display:block;order:0;width:100%;padding:48px 0 0}
+ body:not(.touch-device).playing{position:fixed;inset:0;height:100dvh;overflow:hidden}
+ body:not(.touch-device).playing .collection{display:none}
+}
+@media(min-width:761px) and (max-height:750px){
+ body:not(.touch-device).started .score-card,body:not(.touch-device).started .next-card{height:auto;min-height:0;padding:12px}
+ body:not(.touch-device).started .score-number{font-size:32px;margin:8px 0}
+ body:not(.touch-device).started .record{position:static;display:flex;flex-direction:row;justify-content:space-between;font-size:12px;padding-top:8px}
+ body:not(.touch-device).started .next-card{margin-top:12px;text-align:center}
+ body:not(.touch-device).started .next-card canvas{position:static;width:100px;height:75px;margin:6px auto}
+ body:not(.touch-device).started .next-card strong{max-width:none;font-size:16px;margin:4px 0}
+ body:not(.touch-device).started .value-label{font-size:12px}
+ body:not(.touch-device).started .live-panel{margin-top:12px}
+}
