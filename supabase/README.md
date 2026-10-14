@@ -71,3 +71,11 @@ Kontroller: `npm test` inkluderer netværksrækkefølge, forsinket billet, fejle
 Migration `202610140003_checkpoint_scores.sql` er anvendt af ejeren og API-verificeret 14. oktober 2026. Den tilføjer `saved_at` og `am_checkpoint_round`. Både checkpoints og slutresultater genberegnes med samme validator; et ældre checkpoint kan aldrig sænke scoren, og en afsluttet runde kan ikke ændres. Eksisterende rekorder bevares. Navne er stadig ikke unikke: forskellige enheder/profiler kan hedde Niklas uden at deres konti sammenlægges.
 
 Kør `tests/checkpoint-db.mjs` og `tests/checkpoint-integration.mjs` med samme PGLite/Playwright-miljøvariabler. Sidstnævnte tester navnemodal, genbrug af identitet, gemning før Game Over og offline-genåbning.
+
+## Unikke navne (004 — aktiveret)
+
+Aktiveret af ejeren og API-kontrolleret 14. oktober 2026: de tre højeste rekorder er bevaret, de to lavere dubletter er væk fra listen, og profil-/navnefunktionerne afviser anonym adgang. Ved opsætning fra migration 003 køres **hele `supabase/apply-unique-names.sql` én gang**. Den indeholder både migration 004 og den ønskede oprydning; kør ikke 004 separat bagefter. Oprydningen bruger navn, point og tidspunkt fra den observerede liste, aldrig flytbare placeringer. Den skjuler de eksisterende runder for Niklas 7.138 og Thomas 10, så tidligere lavere runder ikke dukker op i stedet. Runderne kan gendannes af ejeren. Hvis de to observerede poster har ændret sig, afbrydes hele transaktionen til ny kontrol.
+
+Et unikt databaseindeks beskytter navne uden forskel på store/små bogstaver og overflødige mellemrum. Ved gamle dubletter beholder profilen med højeste synlige score navnet; den anden skal vælge et nyt. Ingen konti eller point sammenlægges. Et nyt navn reserveres online før spilstart. Samme browser kan genbruge sit navn; på en anden enhed skal man vælge et ledigt navn, da spillet endnu ikke har login på tværs af enheder. Autosave bruger profilens aktuelle navn, så gamle køposter ikke kan omdøbe spilleren.
+
+Databaseaktivering er verificeret før klientudgivelsen. Verificér med `tests/unique-names-db.mjs` og `tests/checkpoint-integration.mjs`. Begge er kørt lokalt med succes; de skriver ikke til produktion. Browseradgang til Supabase fejlede med timeout under denne ændring.

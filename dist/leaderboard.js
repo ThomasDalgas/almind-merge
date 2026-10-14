@@ -26,7 +26,7 @@ export function createScoreApi(config,{fetcher=fetch,store=storage}={}){
   return sessionRequest;
  }
  async function rpc(name,args={},auth=true){if(!ready)throw new Error('Highscorelisten er ikke tilsluttet endnu');const s=auth?await getSession():null;return request(`/rest/v1/rpc/${name}`,args,s?.access_token);}
- return {ready,live:(id,nickname,score,tier,active)=>rpc('am_live_update',{p_round:id,p_nickname:nickname,p_score:score,p_max_tier:tier,p_active:active}),liveList:()=>rpc('am_live_snapshot',{},false),start:()=>rpc('am_start_round'),checkpoint:(id,nickname,events,duration)=>rpc('am_checkpoint_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),submit:(id,nickname,events,duration)=>rpc('am_submit_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),list:async scope=>{
+ return {ready,profile:()=>rpc('am_player_profile'),claim:name=>rpc('am_claim_name',{p_nickname:name}),live:(id,nickname,score,tier,active)=>rpc('am_live_update',{p_round:id,p_nickname:nickname,p_score:score,p_max_tier:tier,p_active:active}),liveList:()=>rpc('am_live_snapshot',{},false),start:()=>rpc('am_start_round'),checkpoint:(id,nickname,events,duration)=>rpc('am_checkpoint_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),submit:(id,nickname,events,duration)=>rpc('am_submit_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),list:async scope=>{
   // Public browsing doesn't create an account; use a stored identity for your rank.
   let hasSession=Boolean(session);try{hasSession ||= Boolean(JSON.parse(store.get(sessionKey))?.refresh_token);}catch{}
   return rpc('am_leaderboard',{p_scope:scope},hasSession);
@@ -56,19 +56,46 @@ export function scoreRoundStart(){
 export const scoreEvent=(kind,tier,time)=>autosave.event(kind,tier,time);
 export function scoreRoundEnd(round,time){autosave.end(time);$('#score-result-open').hidden=false;}
 export const flushScore=()=>autosave.flush();
-let beginAfterName=null;
+let beginAfterName=null,nameChecked=false,nameChecking=false;
+function openName(begin,error=''){
+ beginAfterName=begin;$('#player-name-input').value=nickname;$('#player-name-error').textContent=error;
+ if(!$('#player-name').open)$('#player-name').showModal();$('#player-name-input').focus();
+}
 export function requirePlayerName(begin){
- if(validNickname(nickname))return true;
- beginAfterName=begin;$('#player-name').showModal();$('#player-name-input').focus();return false;
+ if(nameChecked&&validNickname(nickname))return true;
+ if(nameChecking)return false;
+ if(!api.ready){if(validNickname(nickname))return true;openName(begin);return false;}
+ nameChecking=true;
+ api.profile().then(profile=>{
+  if(profile?.claimed){rememberName(profile.nickname);nameChecked=true;begin();}
+  else openName(begin,profile?'Dit tidligere navn bruges af en anden profil. Vælg et nyt navn.':'');
+ }).catch(()=>{
+  // Existing players can play offline; a new name must be reserved online.
+  if(validNickname(nickname)){nameChecked=true;begin();}
+  else openName(begin,'Forbind til nettet for at vælge et ledigt navn.');
+ }).finally(()=>{nameChecking=false;});
+ return false;
 }
 function rememberName(value){nickname=value;storage.set('almind-score-nickname',value);$('#score-nickname').value=value;}
+async function claimName(value){
+ if(!validNickname(value))throw new Error('Brug 2–20 bogstaver, tal, mellemrum, _ eller -.');
+ const claimed=await api.claim(value);rememberName(claimed);nameChecked=true;void flushScore();return claimed;
+}
 export function initLeaderboard(){
  $('#score-nickname').value=nickname;
- $('#score-profile').addEventListener('submit',e=>{e.preventDefault();const value=$('#score-nickname').value.trim();if(!validNickname(value)){message('Brug 2–20 bogstaver, tal, mellemrum, _ eller -.');return;}rememberName(value);message(`Hej ${value}! Dit navn huskes i denne browser.`);});
- $('#player-name-form').addEventListener('submit',e=>{
-  e.preventDefault();const value=$('#player-name-input').value.trim();
-  if(!validNickname(value)){$('#player-name-error').textContent='Brug 2–20 bogstaver, tal, mellemrum, _ eller -.';return;}
-  rememberName(value);$('#player-name').close();const begin=beginAfterName;beginAfterName=null;begin?.();
+ $('#score-profile').addEventListener('submit',async e=>{
+  e.preventDefault();const button=e.submitter;if(button)button.disabled=true;
+  try{const value=await claimName($('#score-nickname').value.trim());message(`Hej ${value}! Dit navn huskes i denne browser.`);refreshLeaderboard();}
+  catch(error){message(error.message||'Navnet kunne ikke gemmes. Prøv igen.');}
+  finally{if(button)button.disabled=false;}
+ });
+ $('#player-name-form').addEventListener('submit',async e=>{
+  e.preventDefault();const button=e.submitter;if(button)button.disabled=true;
+  try{
+   await claimName($('#player-name-input').value.trim());$('#player-name').close();
+   const begin=beginAfterName;beginAfterName=null;begin?.();
+  }catch(error){$('#player-name-error').textContent=error.message||'Navnet kunne ikke gemmes. Prøv igen.';}
+  finally{if(button)button.disabled=false;}
  });
  setInterval(flushScore,5000);
  window.addEventListener('online',flushScore);
