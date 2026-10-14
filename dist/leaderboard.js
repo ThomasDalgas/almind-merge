@@ -26,14 +26,14 @@ export function createScoreApi(config,{fetcher=fetch,store=storage}={}){
   return sessionRequest;
  }
  async function rpc(name,args={},auth=true){if(!ready)throw new Error('Highscorelisten er ikke tilsluttet endnu');const s=auth?await getSession():null;return request(`/rest/v1/rpc/${name}`,args,s?.access_token);}
- return {ready,profile:()=>rpc('am_player_profile'),claim:name=>rpc('am_claim_name',{p_nickname:name}),live:(id,nickname,score,tier,active)=>rpc('am_live_update',{p_round:id,p_nickname:nickname,p_score:score,p_max_tier:tier,p_active:active}),liveList:()=>rpc('am_live_snapshot',{},false),start:()=>rpc('am_start_round'),checkpoint:(id,nickname,events,duration)=>rpc('am_checkpoint_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),submit:(id,nickname,events,duration)=>rpc('am_submit_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),list:async scope=>{
+ return {ready,createCode:()=>rpc('am_create_player_code'),useCode:(name,code)=>rpc('am_use_player_code',{p_nickname:name,p_code:code}),profile:()=>rpc('am_player_profile'),claim:name=>rpc('am_claim_name',{p_nickname:name}),live:(id,nickname,score,tier,active)=>rpc('am_live_update',{p_round:id,p_nickname:nickname,p_score:score,p_max_tier:tier,p_active:active}),liveList:()=>rpc('am_live_snapshot',{},false),start:()=>rpc('am_start_round'),checkpoint:(id,nickname,events,duration)=>rpc('am_checkpoint_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),submit:(id,nickname,events,duration)=>rpc('am_submit_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),list:async scope=>{
   // Public browsing doesn't create an account; use a stored identity for your rank.
   let hasSession=Boolean(session);try{hasSession ||= Boolean(JSON.parse(store.get(sessionKey))?.refresh_token);}catch{}
   return rpc('am_leaderboard',{p_scope:scope},hasSession);
  }};
 }
 export const scoreApi=createScoreApi(SCORE_CONFIG);const api=scoreApi;let scope='week',loadVersion=0;
-let nickname=storage.get('almind-score-nickname')||'';
+let nickname=storage.get('almind-score-nickname')||'',profileId=null;
 function message(text){$('#score-save-status').textContent=text;}
 function renderRows(rows){
  const list=$('#highscore-list');list.replaceChildren();
@@ -46,7 +46,7 @@ function renderRows(rows){
 }
 export async function refreshLeaderboard(){
  const version=++loadVersion;$('#highscore-status').textContent='Henter rekorder…';
- try{const rows=await api.list(scope);if(version!==loadVersion)return;renderRows(rows);$('#highscore-status').textContent=rows.length?'':'Ingen rekorder endnu. Bliver din den første?';}
+ try{const rows=await api.list(scope);if(version!==loadVersion)return;renderRows(rows);const own=rows.find(row=>row.is_me);if(profileId&&own)window.dispatchEvent(new CustomEvent('almind-profile',{detail:{id:profileId,best:own.score}}));$('#highscore-status').textContent=rows.length?'':'Ingen rekorder endnu. Bliver din den første?';}
  catch{if(version!==loadVersion)return;renderRows([]);$('#highscore-status').textContent=api.ready?'Listen kunne ikke hentes. Prøv Opdater igen.':'Den fælles liste åbner snart. Du kan stadig spille og gemme din lokale rekord.';}
 }
 const autosave=createScoreAutosave({api,store:storage,onStatus:message,onSaved:()=>{if(!document.body.classList.contains('playing'))refreshLeaderboard();}});
@@ -67,7 +67,7 @@ export function requirePlayerName(begin){
  if(!api.ready){if(validNickname(nickname))return true;openName(begin);return false;}
  nameChecking=true;
  api.profile().then(profile=>{
-  if(profile?.claimed){rememberName(profile.nickname);nameChecked=true;begin();}
+  if(profile?.claimed){acceptProfile(profile);begin();}
   else openName(begin,profile?'Dit tidligere navn bruges af en anden profil. Vælg et nyt navn.':'');
  }).catch(()=>{
   // Existing players can play offline; a new name must be reserved online.
@@ -77,11 +77,52 @@ export function requirePlayerName(begin){
  return false;
 }
 function rememberName(value){nickname=value;storage.set('almind-score-nickname',value);$('#score-nickname').value=value;}
+function acceptProfile(profile){
+ rememberName(profile.nickname);nameChecked=true;
+ if(profile.id)profileId=profile.id;
+ if(profile.id)window.dispatchEvent(new CustomEvent('almind-profile',{detail:profile}));
+}
+function openPlayerLink(){
+ if(document.body.classList.contains('started')){message('Gå til forsiden via logoet, før du skifter spillerprofil. Din gemte rekord bevares.');return;}
+ if($('#player-name').open)$('#player-name').close();
+ $('#player-link-name').value=nickname;$('#player-link-code').value='';$('#player-link-error').textContent='';
+ $('#player-link').showModal();$('#player-link-name').focus();
+}
+function initPlayerCodes(){
+ $('#player-code-open').onclick=openPlayerLink;$('#player-name-link').onclick=openPlayerLink;
+ const close=()=>{$('#player-link').close();if(beginAfterName)openName(beginAfterName);};
+ $('#player-link-close').onclick=close;
+ $('#player-link').addEventListener('cancel',e=>{e.preventDefault();close();});
+ $('#player-code-create').onclick=async()=>{
+  const button=$('#player-code-create');button.disabled=true;
+  try{
+   const result=await api.createCode();const output=$('#player-code-output');output.hidden=false;output.textContent=`${result.nickname}: ${result.code}`;
+   $('#player-code-status').textContent='Din faste kode er klar. Gem den privat — den giver adgang til din profil.';
+   button.textContent='Lav en ny kode';
+  }catch(error){$('#player-code-status').textContent=error.message||'Koden kunne ikke oprettes. Prøv igen.';}
+  finally{button.disabled=false;}
+ };
+ $('#player-link-form').addEventListener('submit',async e=>{
+  e.preventDefault();const button=e.submitter;if(button)button.disabled=true;
+  try{
+   const result=await api.useCode($('#player-link-name').value.trim(),$('#player-link-code').value.trim());
+   if(result.error)throw new Error(result.error);
+   if(!result.ok||!result.profile?.claimed)throw new Error('Profilen kunne ikke tilsluttes. Prøv igen.');
+   acceptProfile(result.profile);$('#player-link').close();$('#player-link-code').value='';
+   message(`Du spiller nu som ${result.profile.nickname}. Profil og rekord deles med dine andre enheder.`);
+   refreshLeaderboard();const begin=beginAfterName;beginAfterName=null;begin?.();
+  }catch(error){$('#player-link-error').textContent=error.message||'Profilen kunne ikke tilsluttes. Prøv igen.';}
+  finally{if(button)button.disabled=false;}
+ });
+}
 async function claimName(value){
  if(!validNickname(value))throw new Error('Brug 2–20 bogstaver, tal, mellemrum, _ eller -.');
- const claimed=await api.claim(value);rememberName(claimed);nameChecked=true;void flushScore();return claimed;
+ const claimed=await api.claim(value);rememberName(claimed);nameChecked=true;
+ try{const profile=await api.profile();if(profile?.claimed)acceptProfile(profile);}catch{}
+ void flushScore();return claimed;
 }
 export function initLeaderboard(){
+ initPlayerCodes();
  $('#score-nickname').value=nickname;
  $('#score-profile').addEventListener('submit',async e=>{
   e.preventDefault();const button=e.submitter;if(button)button.disabled=true;

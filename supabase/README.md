@@ -79,3 +79,15 @@ Aktiveret af ejeren og API-kontrolleret 14. oktober 2026: de tre højeste rekord
 Et unikt databaseindeks beskytter navne uden forskel på store/små bogstaver og overflødige mellemrum. Ved gamle dubletter beholder profilen med højeste synlige score navnet; den anden skal vælge et nyt. Ingen konti eller point sammenlægges. Et nyt navn reserveres online før spilstart. Samme browser kan genbruge sit navn; på en anden enhed skal man vælge et ledigt navn, da spillet endnu ikke har login på tværs af enheder. Autosave bruger profilens aktuelle navn, så gamle køposter ikke kan omdøbe spilleren.
 
 Databaseaktivering er verificeret før klientudgivelsen. Verificér med `tests/unique-names-db.mjs` og `tests/checkpoint-integration.mjs`. Begge er kørt lokalt med succes; de skriver ikke til produktion. Browseradgang til Supabase fejlede med timeout under denne ændring.
+
+## Faste spillerkoder og Svend-par (005/006 — afventer aktivering)
+
+Kør hele `supabase/apply-player-codes-and-svend.sql`. Den er samlet i én transaktion og kan køres igen. Den indeholder migration 005 og 006; opret ikke kode-tabeller manuelt. Alle nye tabeller har RLS, og browserroller har ingen direkte adgang.
+
+- Spilleren laver en fast, tilfældig kode med 10 hextegn fra sin eksisterende profil. Navn + kode tilknytter en anden browsers anonyme identitet til samme profil. Kun SHA-256 af koden gemmes. Koden udløber ikke; ny kode erstatter den gamle. Allerede tilknyttede enheder forbliver tilknyttet ved kodeskift.
+- Koden er en adgangskode til profilen og vises kun ved oprettelse. Ingen e-mail eller loginudbyder kræves. Fem forsøg pr. browseridentitet pr. 15 minutter; tælleren gemmes også ved forkert kode. Nye anonyme konti er fortsat underlagt Supabase Auths rate limit. Det er en familieprofil, ikke stærk personverifikation.
+- Samme profil får én highscoreplacering. Flere samtidige enheder kan spille hver sin runde. Livevisningen viser profilens senest startede aktive runde, ikke en sum. Gamle runder flyttes ikke ved profilskift: den oprettende enhed kan færdiggøre sin kø, men scoren bliver på den oprindelige profil.
+- Klienten viser fælles bedste resultat og gemmer lokale rekorder separat pr. profil. Kodeskift til anden profil tilbydes på forsiden for at undgå at ændre spiller midt i runden.
+- To Svend ved kontakt fjernes uden en ny brik og uden ekstra point. Merge-hændelsen valideres som forbrug af to tier-10-brikker. En anden rydning uden to nye Svend afvises.
+
+Testet lokalt: `player-codes-db.mjs`, `svend-clear-db.mjs`, `svend-clear-browser.mjs`, `checkpoint-integration.mjs` med to browserkontekster, almindelige unit tests samt desktop-/mobilvisninger. Integrationstesten opretter koden, afviser en forkert kode, tilknytter en anden browser og kontrollerer fælles rekord efter genindlæsning.

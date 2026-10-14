@@ -2,7 +2,9 @@ export const VALUES = Array.from({length:11},(_,i)=>2**(i+1));
 export const RADII = [16,25,30,35,40,45,50,57,65,74,84];
 export const DROP_DELAY = .5;
 export const TOP_WAIT = 15;
-export function mergeTier(a,b){return a===b && Number.isInteger(a) && a>=0 && a<VALUES.length-1 ? a+1 : null;}
+// -1 means a valid terminal pair clears both bodies without a replacement.
+export const CLEAR_PAIR=-1;
+export function mergeTier(a,b){return a===b && Number.isInteger(a) && a>=0 && a<VALUES.length ? (a===VALUES.length-1?CLEAR_PAIR:a+1) : null;}
 export function nextTier(drops,maxTier,random=Math.random){
   if(drops<3)return 0;
   const exclusiveMax=Math.min(Math.max(maxTier,3),5);
@@ -17,7 +19,7 @@ export function dropRound(round,time,random=Math.random){
   return tier;
 }
 export function mergeRound(round,a,b){
-  const tier=mergeTier(a,b);if(tier===null)return null;
+  const tier=mergeTier(a,b);if(tier===null||tier===CLEAR_PAIR)return tier;
   round.score+=VALUES[tier];round.maxTier=Math.max(round.maxTier,tier);return tier;
 }
 export function advanceDanger(previous,above,delta){return above?previous+delta:0;}

@@ -1,8 +1,8 @@
 import {findBallEscape} from './ball-collision.js?v=ball-fix-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=live-players-v1';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=unique-names-v1';
-import {VALUES,TOP_WAIT,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=gameover-v1';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=player-codes-v1';
+import {VALUES,CLEAR_PAIR,TOP_WAIT,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=svend-clear-v1';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=gallery-v1';
 const $=s=>document.querySelector(s);
 const canvas=$('#game'),ctx=canvas.getContext('2d');
@@ -57,6 +57,14 @@ function removeAt(x,y){
 $("#shake").onclick=shake;$("#remove").onclick=()=>{if(mode!=="playing"||powers.remove<1)return;removing=!removing;dragging=false;syncPowers();if(removing)toast("Tryk på en brik for at fjerne den. Tryk Fjern igen for at annullere.");};
 let audioGeneration=0;
 let activeAudio=[];const audioBuffers=new Map();
+let bestStorageKey='merge-lab-best';
+window.addEventListener('almind-profile',({detail})=>{
+ const key=`almind-profile-best:${detail.id}`;let saved=0;
+ try{saved=Number(localStorage.getItem(key)||0)||0;}catch{}
+ best=Math.max(Number(detail.best)||0,saved,key===bestStorageKey?best:0);bestStorageKey=key;
+ try{localStorage.setItem(key,String(best));}catch{}
+ $('#best').textContent=numberFormat.format(best);
+});
 try{best=Number(localStorage.getItem('merge-lab-best')||0)||0;soundOn=localStorage.getItem('merge-lab-sound')!=='off';}catch{}
 const numberFormat=new Intl.NumberFormat('da-DK');
 function toast(msg){clearTimeout(toastTimeout);$('#toast').textContent=msg;$('#toast').hidden=false;toastTimeout=setTimeout(()=>$('#toast').hidden=true,4500);}
@@ -123,7 +131,7 @@ function previewContext(c,w,h){
 function syncUI(){
   syncPowers();
   $('#score').textContent=numberFormat.format(round.score);
-  if(round.score>best){best=round.score;try{localStorage.setItem('merge-lab-best',String(best));}catch{}}
+  if(round.score>best){best=round.score;try{localStorage.setItem(bestStorageKey,String(best));}catch{}}
   $('#best').textContent=numberFormat.format(best);$('#next-name').textContent=tiles[round.next].name;$('#next-value').textContent=`${VALUES[round.next]} point`;
   const c=$('#next-preview'),g=previewContext(c,160,120);const outline=tileOutline(round.next),xs=outline.map(p=>p.x),ys=outline.map(p=>p.y);
   const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
@@ -187,10 +195,10 @@ function burst(x,y,tier,celebrate=false){
 function scoreFloat(x,y,value){floats.push({x,y,text:`+${value}`,life:.8});}
 Events.on(engine,'collisionStart',({pairs})=>{
   if(mode!=='playing')return;
-  for(const pair of pairs){const a=pair.bodyA.parent,b=pair.bodyB.parent;if(a.plugin.tile&&b.plugin.tile&&a.plugin.alive&&b.plugin.alive&&a.plugin.tier===b.plugin.tier&&a.plugin.tier<VALUES.length-1){a.plugin.alive=b.plugin.alive=false;pending.push([a,b]);}}
+  for(const pair of pairs){const a=pair.bodyA.parent,b=pair.bodyB.parent;if(a.plugin.tile&&b.plugin.tile&&a.plugin.alive&&b.plugin.alive&&a.plugin.tier===b.plugin.tier&&a.plugin.tier<VALUES.length){a.plugin.alive=b.plugin.alive=false;pending.push([a,b]);}}
 });
 function processMerges(){
-  for(const [a,b] of pending){const x=(a.position.x+b.position.x)/2,y=(a.position.y+b.position.y)/2,tier=mergeRound(round,a.plugin.tier,b.plugin.tier);Composite.remove(engine.world,[a,b]);bodies=bodies.filter(v=>v!==a&&v!==b);if(tier!==null){scoreEvent('m',a.plugin.tier,time);const n=spawn(tier,x,y);Body.setVelocity(n,{x:(a.velocity.x+b.velocity.x)*.18,y:Math.min(0,(a.velocity.y+b.velocity.y)*.18)});burst(x,y,tier,true);scoreFloat(x,y,VALUES[tier]);tileSound(tier);}}
+  for(const [a,b] of pending){const x=(a.position.x+b.position.x)/2,y=(a.position.y+b.position.y)/2,tier=mergeRound(round,a.plugin.tier,b.plugin.tier);Composite.remove(engine.world,[a,b]);bodies=bodies.filter(v=>v!==a&&v!==b);if(tier!==null){scoreEvent('m',a.plugin.tier,time);if(tier===CLEAR_PAIR){burst(x,y,VALUES.length-1,true);tileSound(VALUES.length-1);floats.push({x,y,text:'Mere plads!',life:1.2});setStatus('To Svend — mere plads til familien!');continue;}const n=spawn(tier,x,y);Body.setVelocity(n,{x:(a.velocity.x+b.velocity.x)*.18,y:Math.min(0,(a.velocity.y+b.velocity.y)*.18)});burst(x,y,tier,true);scoreFloat(x,y,VALUES[tier]);tileSound(tier);}}
   if(pending.length)syncUI();pending=[];
 }
 function drop(){if(removing||mode!=='playing'||document.querySelector('dialog[open]'))return;const tier=dropRound(round,time);if(tier===null)return;scoreEvent('d',tier,time);const r=tileRadius(tier),x=Math.max(LEFT+r+1,Math.min(RIGHT-r-1,aim));spawn(tier,x,SPAWN);scoreFloat(x,SPAWN+25,VALUES[tier]);dropSound();syncUI();setStatus('Find en makker. Skab noget større.');}
@@ -206,7 +214,7 @@ function lockPlayScreen(lock){
 }
 function start(){
   if(!assetsReady)return;
-  if(!requirePlayerName(start))return;
+  ensureAudio();if(!requirePlayerName(start))return;
   scoreRoundStart();
   ensureAudio();if(audioCtx)recordedBuffer('assets/game-over-voice.m4a').catch(()=>{});
   document.body.classList.add('started');fireworks=[];dangerProgress=0;$('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');
