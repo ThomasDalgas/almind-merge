@@ -1,3 +1,4 @@
+import {createDangerAudio} from './danger-audio.js?v=riser-v1';
 import {findBallEscape} from './ball-collision.js?v=ball-fix-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=low-traffic-v1';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
@@ -71,7 +72,8 @@ function toast(msg){clearTimeout(toastTimeout);$('#toast').textContent=msg;$('#t
 function setStatus(text){$('#status').replaceChildren();const i=document.createElement('i');$('#status').append(i,document.createTextNode(text));}
 function updateSoundButton(){const b=$('#sound');b.textContent=soundOn?'♫':'♪';b.style.opacity=soundOn?'1':'.45';b.setAttribute('aria-label',soundOn?'Slå lyd fra':'Slå lyd til');}
 function ensureAudio(){try{audioCtx??=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});}catch{}}
-function stopSounds(){audioGeneration++;for(const source of activeAudio){try{source.stop();}catch{}}activeAudio=[];}
+const dangerAudio=createDangerAudio({context:()=>audioCtx,load:()=>recordedBuffer('assets/danger-riser.m4a'),duration:TOP_WAIT});
+function stopSounds(){dangerAudio.stop();audioGeneration++;for(const source of activeAudio){try{source.stop();}catch{}}activeAudio=[];}
 // Short synthesized cartoon effects, sharing the game's mute and stop controls.
 function effectTone(frequency,endFrequency,delay,duration,volume,type='sine',force=false){
  if(!soundOn&&!force)return;ensureAudio();if(!audioCtx)return;
@@ -216,7 +218,7 @@ function start(){
   if(!assetsReady)return;
   ensureAudio();if(!requirePlayerName(start))return;
   scoreRoundStart();
-  ensureAudio();if(audioCtx)recordedBuffer('assets/game-over-voice.m4a').catch(()=>{});
+  ensureAudio();if(audioCtx){recordedBuffer('assets/game-over-voice.m4a').catch(()=>{});recordedBuffer('assets/danger-riser.m4a').catch(()=>{});}
   document.body.classList.add('started');fireworks=[];dangerProgress=0;$('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');
   stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound();powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
 }
@@ -232,6 +234,7 @@ function step(dt){
   let worst=0;
   for(const body of bodies){body.plugin.age+=dt;body.plugin.danger=advanceDanger(body.plugin.danger,Math.min(...body.vertices.map(v=>v.y))<TOP,dt);worst=Math.max(worst,body.plugin.danger);}
   dangerProgress=Math.min(1,worst/TOP_WAIT);
+  dangerAudio.sync(worst,soundOn);
   $('#danger').hidden=worst<.8;if(worst>=.8)$('#danger b').textContent=Math.max(0,TOP_WAIT-worst).toFixed(1).replace('.',',');
   if(worst>=TOP_WAIT)end();
   for(const f of fireworks.filter(f=>f.at<=time))firework(f.x,f.y,f.level);fireworks=fireworks.filter(f=>f.at>time);
