@@ -68,6 +68,6 @@ Kontroller: `npm test` inkluderer netværksrækkefølge, forsinket billet, fejle
 
 ## Løbende rekorder (migration 003)
 
-`202610140003_checkpoint_scores.sql` tilføjer `saved_at` og `am_checkpoint_round`. Både checkpoints og slutresultater genberegnes med samme validator; et ældre checkpoint kan aldrig sænke scoren, og en afsluttet runde kan ikke ændres. Eksisterende rekorder bevares. Navne er stadig ikke unikke: forskellige enheder/profiler kan hedde Niklas uden at deres konti sammenlægges.
+Migration `202610140003_checkpoint_scores.sql` er anvendt af ejeren og API-verificeret 14. oktober 2026. Den tilføjer `saved_at` og `am_checkpoint_round`. Både checkpoints og slutresultater genberegnes med samme validator; et ældre checkpoint kan aldrig sænke scoren, og en afsluttet runde kan ikke ændres. Eksisterende rekorder bevares. Navne er stadig ikke unikke: forskellige enheder/profiler kan hedde Niklas uden at deres konti sammenlægges.
 
 Kør `tests/checkpoint-db.mjs` og `tests/checkpoint-integration.mjs` med samme PGLite/Playwright-miljøvariabler. Sidstnævnte tester navnemodal, genbrug af identitet, gemning før Game Over og offline-genåbning.
