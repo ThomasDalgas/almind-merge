@@ -43,7 +43,7 @@ function renderRows(rows){
   const points=document.createElement('b');points.textContent=fmt.format(row.score);li.append(rank,person,points);list.append(li);
  }
 }
-async function loadBoard(){
+export async function refreshLeaderboard(){
  const version=++loadVersion;$('#highscore-status').textContent='Henter rekorder…';
  try{const rows=await api.list(scope);if(version!==loadVersion)return;renderRows(rows);$('#highscore-status').textContent=rows.length?'':'Ingen rekorder endnu. Bliver din den første?';}
  catch{if(version!==loadVersion)return;renderRows([]);$('#highscore-status').textContent=api.ready?'Listen kunne ikke hentes. Prøv Opdater igen.':'Den fælles liste åbner snart. Du kan stadig spille og gemme din lokale rekord.';}
@@ -60,7 +60,7 @@ async function savePending(){
   if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
   await api.submit(ticket.id,nickname,item.events,item.duration);
   if(pending===item){pending=null;$('#score-profile-save').textContent='Gem navn';message(`Din score på ${fmt.format(item.score)} er gemt!`);}
-  await loadBoard();
+  await refreshLeaderboard();
  }catch(e){if(pending===item)message(e.message.includes('Denne runde')?e.message:'Scoren kunne ikke gemmes. Tryk Gem score for at prøve igen.');}
  finally{saving=false;$('#score-profile-save').disabled=false;}
 }
@@ -81,10 +81,22 @@ export function scoreRoundEnd(round,time){
 export function initLeaderboard(){
  $('#score-nickname').value=nickname;
  $('#score-profile').addEventListener('submit',e=>{e.preventDefault();const value=$('#score-nickname').value.trim();if(!validNickname(value)){message('Brug 2–20 bogstaver, tal, mellemrum, _ eller -.');return;}nickname=value;storage.set('almind-score-nickname',value);if(pending)savePending();else message(`Hej ${value}! Din næste færdige runde gemmes på listen.`);});
- for(const button of document.querySelectorAll('[data-score-scope]'))button.onclick=()=>{scope=button.dataset.scoreScope;for(const b of document.querySelectorAll('[data-score-scope]'))b.setAttribute('aria-pressed',String(b===button));loadBoard();};
- $('#highscore-refresh').onclick=loadBoard;
+ for(const button of document.querySelectorAll('[data-score-scope]'))button.onclick=()=>{scope=button.dataset.scoreScope;for(const b of document.querySelectorAll('[data-score-scope]'))b.setAttribute('aria-pressed',String(b===button));refreshLeaderboard();};
+ $('#highscore-refresh').onclick=refreshLeaderboard;
  $('#score-result-open').onclick=()=>{$('#highscores').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});$('#score-nickname').focus({preventScroll:true});};
- loadBoard();
+ let boardVisible=false;
+ const refreshVisible=()=>{
+  if(boardVisible&&!document.hidden&&!document.body.classList.contains('playing'))refreshLeaderboard();
+ };
+ new IntersectionObserver(entries=>{
+  boardVisible=entries[0].isIntersecting;
+  refreshVisible();
+ }).observe($('#highscores'));
+ setInterval(refreshVisible,15000);
+ window.addEventListener('online',refreshVisible);
+ window.addEventListener('focus',refreshVisible);
+ document.addEventListener('visibilitychange',refreshVisible);
+ refreshLeaderboard();
 }
 
 export const liveRoundTicket=()=>current?.ticket||Promise.resolve(null);
