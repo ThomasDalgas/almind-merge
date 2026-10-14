@@ -80,9 +80,9 @@ Et unikt databaseindeks beskytter navne uden forskel på store/små bogstaver og
 
 Databaseaktivering er verificeret før klientudgivelsen. Verificér med `tests/unique-names-db.mjs` og `tests/checkpoint-integration.mjs`. Begge er kørt lokalt med succes; de skriver ikke til produktion. Browseradgang til Supabase fejlede med timeout under denne ændring.
 
-## Faste spillerkoder og Svend-par (005/006 — afventer aktivering)
+## Faste spillerkoder og Svend-par (005/006 — aktiveret)
 
-Kør hele `supabase/apply-player-codes-and-svend.sql`. Den er samlet i én transaktion og kan køres igen. Den indeholder migration 005 og 006; opret ikke kode-tabeller manuelt. Alle nye tabeller har RLS, og browserroller har ingen direkte adgang.
+Aktiveret af ejeren 14. oktober 2026. API-kontrollen bekræfter de nye kodefunktioner med korrekt afvisning af anonym adgang og fortsat læsning af eksisterende rekorder. Til opsætning eller genkørsel bruges hele `supabase/apply-player-codes-and-svend.sql`. Den er samlet i én transaktion og kan køres igen. Den indeholder migration 005 og 006; opret ikke kode-tabeller manuelt. Alle nye tabeller har RLS, og browserroller har ingen direkte adgang.
 
 - Spilleren laver en fast, tilfældig kode med 10 hextegn fra sin eksisterende profil. Navn + kode tilknytter en anden browsers anonyme identitet til samme profil. Kun SHA-256 af koden gemmes. Koden udløber ikke; ny kode erstatter den gamle. Allerede tilknyttede enheder forbliver tilknyttet ved kodeskift.
 - Koden er en adgangskode til profilen og vises kun ved oprettelse. Ingen e-mail eller loginudbyder kræves. Fem forsøg pr. browseridentitet pr. 15 minutter; tælleren gemmes også ved forkert kode. Nye anonyme konti er fortsat underlagt Supabase Auths rate limit. Det er en familieprofil, ikke stærk personverifikation.
