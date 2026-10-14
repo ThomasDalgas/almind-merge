@@ -1,4 +1,4 @@
-import {createDangerAudio} from './danger-audio.js?v=riser-v1';
+import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=ball-fix-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=low-traffic-v1';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
@@ -25,7 +25,7 @@ const engine=Engine.create({enableSleeping:false,positionIterations:16,velocityI
 const wallOptions={isStatic:true,friction:0,frictionStatic:0,restitution:.12};
 const walls=[Bodies.rectangle(LEFT-15,H/2,30,H*3,wallOptions),Bodies.rectangle(RIGHT+15,H/2,30,H*3,wallOptions),Bodies.rectangle(W/2,FLOOR+20,W,40,wallOptions)];
 Composite.add(engine.world,walls);
-let round=createRound(),bodies=[],pending=[],particles=[],floats=[],mode='ready',time=0,aim=W/2,dragging=false,keys=new Set(),best=0,lastSound=-Infinity;
+let round=createRound(),bodies=[],pending=[],particles=[],floats=[],mode='ready',time=0,aim=W/2,dragging=false,keys=new Set(),best=0;
 let soundOn=true,audioCtx=null,toastTimeout;
 let assetsReady=false;
 let fireworks=[];
@@ -107,7 +107,7 @@ function celebrationSound(level,force=false){
 async function tileSound(tier,force=false){
   const generation=audioGeneration;
   if(!soundOn&&!force)return;ensureAudio();if(!audioCtx)return;
-  const now=audioCtx.currentTime;if(!force&&now-lastSound<.065)return;lastSound=now;
+  const now=audioCtx.currentTime;
   const tile=tiles[tier];
   const sound=tile.sound||({1:'assets/silas-merge.m4a',2:'assets/niklas-merge.m4a',3:'assets/elias-merge-v2.m4a',6:'assets/tina-merge.m4a',9:'assets/helle-merge.m4a',10:'assets/svend-merge.m4a'}[tier]??null);
   if(tier>=7&&!sound){celebrationSound(tier-6,force);return;}
@@ -115,7 +115,6 @@ async function tileSound(tier,force=false){
     try{
       const buffer=await recordedBuffer(sound);
       if(generation!==audioGeneration||(force&&!$('#portrait').open)||(!force&&(mode!=='playing'||!soundOn)))return;
-      if(activeAudio.length>=4){try{activeAudio.shift().stop();}catch{}}
       const source=audioCtx.createBufferSource();source.buffer=buffer;const gain=audioCtx.createGain();const at=audioCtx.currentTime,duration=Math.min(buffer.duration,8),fade=Math.min(.025,duration/3);gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(.6,at+fade);gain.gain.setValueAtTime(.6,at+duration-fade);gain.gain.linearRampToValueAtTime(0,at+duration);source.connect(gain).connect(audioCtx.destination);source.start(at);source.stop(at+duration);activeAudio.push(source);source.onended=()=>{activeAudio=activeAudio.filter(x=>x!==source);};
     }catch{if(generation!==audioGeneration)return;toast('Denne lyd kunne ikke afspilles. Prøv MP3 eller WAV.');}return;
   }

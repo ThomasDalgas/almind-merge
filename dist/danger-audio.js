@@ -19,7 +19,7 @@ export function createDangerAudio({context,load,duration=15}){
    source=ctx.createBufferSource();gain=ctx.createGain();source.buffer=buffer;
    const rate=buffer.duration/duration,now=ctx.currentTime;
    source.playbackRate.value=rate;
-   gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(.65,now+.015);
+   gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(.65*.8,now+.015);
    source.connect(gain).connect(ctx.destination);startedAt=now-offset;
    source.start(now,offset*rate);
    source.onended=()=>{source?.disconnect();gain?.disconnect();source=null;gain=null;};
