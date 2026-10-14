@@ -96,6 +96,8 @@ function initPlayerCodes(){
  $('#player-code-create').onclick=async()=>{
   const button=$('#player-code-create');button.disabled=true;
   try{
+   const profile=await api.profile();
+   if(!profile?.claimed)throw new Error('Denne browser er ikke tilknyttet din spillerprofil. Brug din eksisterende spillerkode, eller lav koden på en enhed, hvor profilen allerede er tilknyttet.');
    const result=await api.createCode();const output=$('#player-code-output');output.hidden=false;output.textContent=`${result.nickname}: ${result.code}`;
    $('#player-code-status').textContent='Din faste kode er klar. Gem den privat — den giver adgang til din profil.';
    button.textContent='Lav en ny kode';

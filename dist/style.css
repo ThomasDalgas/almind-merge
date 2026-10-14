@@ -429,3 +429,8 @@ body.touch-device.playing main{--board-width:min(100%,calc((var(--game-space) - 
 #player-link input{width:100%;padding:13px;border:2px solid #58abae;border-radius:10px;background:#fffef4;font-size:18px;color:#12475a}
 #player-link .primary{width:100%;background:#ffd66b;color:#12475a;border-color:#c89e26}
 #player-link-error{color:#a72f2f;min-height:1em}#player-name-link{display:block;width:100%;margin-top:12px;text-decoration:underline}
+
+/* Keep profile actions legible inside the dark highscore panel. */
+.player-sharing .button{background:#ffd66b;color:#12475a;border-color:#e9bd40;min-height:44px}
+.player-sharing .button:hover{background:#ffe89b}
+#player-code-status{color:#fff0b4;overflow-wrap:anywhere}
