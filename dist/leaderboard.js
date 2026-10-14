@@ -25,13 +25,13 @@ export function createScoreApi(config,{fetcher=fetch,store=storage}={}){
   return globalThis.navigator?.locks? navigator.locks.request('almind-score-auth',run):run();
  }
  async function rpc(name,args={},auth=true){if(!ready)throw new Error('Highscorelisten er ikke tilsluttet endnu');const s=auth?await getSession():null;return request(`/rest/v1/rpc/${name}`,args,s?.access_token);}
- return {ready,start:()=>rpc('am_start_round'),submit:(id,nickname,events,duration)=>rpc('am_submit_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),list:async scope=>{
+ return {ready,live:(id,nickname,score,tier,active)=>rpc('am_live_update',{p_round:id,p_nickname:nickname,p_score:score,p_max_tier:tier,p_active:active}),liveList:()=>rpc('am_live_snapshot',{},false),start:()=>rpc('am_start_round'),submit:(id,nickname,events,duration)=>rpc('am_submit_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),list:async scope=>{
   // Public browsing doesn't create an account; use a stored identity for your rank.
   let hasSession=Boolean(session);try{hasSession ||= Boolean(JSON.parse(store.get(sessionKey))?.refresh_token);}catch{}
   return rpc('am_leaderboard',{p_scope:scope},hasSession);
  }};
 }
-const api=createScoreApi(SCORE_CONFIG);let current=null,pending=null,scope='week',loadVersion=0,saving=false;
+export const scoreApi=createScoreApi(SCORE_CONFIG);const api=scoreApi;let current=null,pending=null,scope='week',loadVersion=0,saving=false;
 let nickname=storage.get('almind-score-nickname')||'';
 function message(text){$('#score-save-status').textContent=text;}
 function renderRows(rows){
@@ -86,3 +86,6 @@ export function initLeaderboard(){
  $('#score-result-open').onclick=()=>{$('#highscores').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});$('#score-nickname').focus({preventScroll:true});};
  loadBoard();
 }
+
+export const liveRoundTicket=()=>current?.ticket||Promise.resolve(null);
+export const liveNickname=()=>nickname;

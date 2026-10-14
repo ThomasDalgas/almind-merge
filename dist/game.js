@@ -1,5 +1,6 @@
+import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=live-players-v1';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,scoreRoundStart,scoreEvent,scoreRoundEnd} from './leaderboard.js?v=highscores-v1';
+import {initLeaderboard,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=live-players-v1';
 import {VALUES,TOP_WAIT,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=gameover-v1';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=gallery-v1';
 const $=s=>document.querySelector(s);
@@ -172,17 +173,17 @@ let savedPageY=0;
 function lockPlayScreen(lock){
   if(lock&&!document.body.classList.contains('playing'))savedPageY=window.scrollY;
   document.body.classList.toggle('playing',lock);
-  if(!lock)window.scrollTo(0,savedPageY);
+  if(!lock){window.scrollTo(0,savedPageY);liveNotices.clear();}
 }
 function start(){
   if(!assetsReady)return;
   scoreRoundStart();
   document.body.classList.add('started');fireworks=[];dangerProgress=0;$('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');
-  stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound();powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();
+  stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound();powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
 }
-function pause(){if(mode!=='playing')return;mode='paused';cancelRemove();lockPlayScreen(false);keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');}
-function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;mode='playing';syncPowers();lockPlayScreen(true);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});mobileDisplay.enter();}
-function end(){if(mode==='over')return;mode='over';mobileDisplay.leave();fireworks=[];cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);$('#game-over-logo').hidden=false;$('#overlay').classList.add('game-over');gameOverSound();scoreRoundEnd(round,time);}
+function pause(){if(mode!=='playing')return;mode='paused';cancelRemove();lockPlayScreen(false);keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');livePlayers.changed();}
+function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;mode='playing';syncPowers();lockPlayScreen(true);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();}
+function end(){if(mode==='over')return;mode='over';mobileDisplay.leave();fireworks=[];cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);$('#game-over-logo').hidden=false;$('#overlay').classList.add('game-over');gameOverSound();scoreRoundEnd(round,time);livePlayers.changed();}
 function step(dt){
   if(mode!=='playing')return;time+=dt;if(shakeUntil&&time<shakeUntil){const pulse=Math.floor((time-(shakeUntil-.65))/.16);if(pulse>shakePulse){shakePulse=pulse;shakeKick(pulse%2?-1:1);}}if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
   if(keys.has('ArrowLeft'))aim-=260*dt;if(keys.has('ArrowRight'))aim+=260*dt;
@@ -243,6 +244,12 @@ portrait.addEventListener('click',e=>{if(portraitBackdropDown&&outsidePortrait(e
 function buildFamily(){
   $('#family').replaceChildren();tiles.forEach((t,i)=>{const el=document.createElement('button');el.type='button';el.className='family-item';el.setAttribute('aria-label',`Se ${t.name} i stor størrelse`);el.onclick=()=>{stopSounds();portraitTier=i;$('#portrait-play').setAttribute('aria-label',`Afspil lyden til ${t.name}`);const img=$('#portrait-image');img.src=tileSource(i);img.alt=t.name;$('#portrait-name').textContent=t.name;$('#portrait-points').textContent=`${numberFormat.format(VALUES[i])} point`;openDialog('portrait');};const c=document.createElement('canvas');c.width=100;c.height=95;c.setAttribute('aria-label',t.name);drawTile(previewContext(c,100,95),i,50,47,tileRadius(i,21+i*1.3),{number:false});const value=document.createElement('b');value.textContent=String(VALUES[i]);const name=document.createElement('span');name.textContent=t.name;el.append(c,value,name);$('#family').append(el);});syncUI();
 }
+let departed=false;
+const liveNotices=createLiveNotices({canNotify:()=>mode==='playing'&&!document.hidden,show:notice=>{const el=$('#live-announcement');el.textContent=notice.text;el.dataset.kind=notice.kind;el.classList.add('visible');},hide:()=>$('#live-announcement').classList.remove('visible')});
+const livePlayers=createLivePlayers({api:scoreApi,getTicket:liveRoundTicket,getNickname:liveNickname,getState:()=>({mode,score:round.score,maxTier:round.maxTier}),render:(snapshot,status)=>{renderLivePlayers(snapshot,status);liveNotices.observe(snapshot,status);},visible:()=>!document.hidden&&!departed});
+window.addEventListener('pagehide',()=>{departed=true;livePlayers.changed();});window.addEventListener('pageshow',()=>{departed=false;if(mode!=='ready')livePlayers.changed();});
+window.addEventListener('online',()=>{if(mode!=='ready')livePlayers.changed();});window.addEventListener('offline',()=>{if(mode!=='ready')livePlayers.changed();});
+document.addEventListener('visibilitychange',()=>{if(mode!=='ready')livePlayers.changed();});
 const mobileDisplay=initMobileDisplay({isPlaying:()=>mode==='playing',pause,cancelDrag:()=>{dragging=false;}});
 initLeaderboard();updateSoundButton();buildFamily();requestAnimationFrame(frame);
 $('#play').disabled=true;

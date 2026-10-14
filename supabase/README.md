@@ -51,3 +51,17 @@ PGLITE_MODULE=/path/to/pglite/dist/index.js PLAYWRIGHT_MODULE=/path/to/playwrigh
 ```
 
 Integrationstesten starter sin egen lokale HTTP-server på port 4186 og PostgreSQL i hukommelsen. Den skriver aldrig til online Supabase. Skærmbilledet i `/tmp/almind-highscores-mobile.png` viser kun lokale testdata.
+
+## Spiller nu og beskeder
+
+Migration `202610140002_live_players.sql` er anvendt på Almind-Merge-projektet. Livevisningen bruger de eksisterende browserprofiler og serverudstedte rundebilletter. Et RPC-kald opdaterer egen midlertidige session og returnerer spillere + rekordhændelser cirka hvert tredje sekund. Der er ingen ekstra SDK eller websocket-afhængighed.
+
+- Kun synlige, aktive runder annonceres. Pause, afslutning og skjult side sender en afmelding; ved afbrudt forbindelse udløber sessionen senest 20 sekunder efter sidste serveropdatering. Baggrundsfaner stopper polling.
+- Navn hentes fra spillerens gemte kaldenavn, ellers et stabilt `Gæst XXXX`-navn. Livepoint er foreløbige og klientrapporterede; de kan aldrig indsættes som highscore via livefunktionen.
+- Serveren kontrollerer rundeejerskab, værdigrænser, afslutning, skjulning og blokering. Begge nye tabeller har RLS og ingen direkte browseradgang. Midlertidige sessioner ryddes efter en times udløb, rekordhændelser efter et døgn ved næste relevante skrivning.
+- Flere faner for samme profil vises som én spiller (senest startede aktive runde). Afmelding af en gammel runde fjerner ikke en nyere rundes session. Højst de 50 førende samt egen spiller vises; tælleren angiver samlet antal.
+- Serverens afslutningstrigger giver én besked ved en **streng forbedring** af total- eller ugerekorden. Totalrekord har prioritet, lighed giver ingen besked. Ugen følger Europe/Copenhagen. Hændelser fra skjulte/blokerede spillere vises ikke.
+- Første tilslutning/genforbindelse etablerer en baseline uden gamle velkomst-/rekordbeskeder. Senere hændelser vises i en fast plads over banen i 3 sekunder, derefter foldes de op. Ingen overlap med canvas eller flytning af banen. Køen er begrænset til tre ventende beskeder med rekordprioritet; pause tømmer den.
+- Livefunktionen fejler uafhængigt af selve spillet. Ved forbindelsesfejl ryddes forældede spillere lokalt og der vises forbindelsesstatus.
+
+Kontroller: `npm test` inkluderer netværksrækkefølge, forsinket billet, fejlet genstart samt beskedtiming/kø. `tests/live-db.mjs` bruger PGlite til ejerskab, udløb, flere faner, rekordhændelser og moderation. `tests/live-integration.mjs` bruger samme lokale database med to uafhængige browserprofiler og tester point, join/rekordbeskeder, pause, offline/genforbindelse og at banen ikke flyttes/dækkes. Begge bruger samme miljøvariabler som de øvrige database-/browsertests. En separat kontrol på online Supabase verificerede to midlertidige spillere og faktisk 20-sekunders udløb uden at indsende highscores.

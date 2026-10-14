@@ -340,3 +340,28 @@ body.touch-device.playing .arena-caption,body.touch-device.playing .collection{d
 .rotate-screen p{line-height:1.6;margin:8px 0 18px}
 .rotate-phone{font-size:60px;color:#ffd35a;line-height:1}
 .rotate-screen .button{font-size:14px;padding:10px 20px}
+
+/* Live scores stay outside the playfield, with horizontal browsing on touch. */
+.live-panel{grid-column:1/-1;min-width:0;width:100%;margin-top:14px;padding:8px;border:1px solid #79a8ae;border-radius:12px;background:#e4f2eb;color:#143f50}
+.live-heading{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:750;white-space:nowrap}
+.live-heading i{width:6px;height:6px;border-radius:50%;background:#139d69;flex:none}
+.live-heading small{font-size:9px;font-weight:400;margin-left:auto;color:#426673}
+.live-panel[data-connection="offline"] .live-heading i,.live-panel[data-connection="idle"] .live-heading i{background:#8a9694}
+.live-players{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;touch-action:pan-x;padding-top:5px;min-height:29px}
+.live-player{display:flex;align-items:center;gap:7px;flex:none;font-size:11px;padding:4px 7px;border-radius:7px;background:#cce5de;white-space:nowrap}
+.live-player.is-me{background:#fff0b1}.live-player b{color:#075a70;font-variant-numeric:tabular-nums}.live-empty{font-size:11px;color:#426673;padding:4px 0;white-space:nowrap}
+body.touch-device.playing{touch-action:pan-x}
+body.touch-device.playing main{--board-width:min(100%,calc((var(--game-space) - 190px) * .709677))}
+body.touch-device.playing .arena-section{width:100%}
+body.touch-device.playing .arena-toolbar{width:min(100%,max(300px,var(--board-width)));margin:auto}
+body.touch-device.playing .arena-wrap{width:var(--board-width);margin:auto}
+body.touch-device.playing .left-rail{width:min(100%,max(300px,var(--board-width)))}
+body.touch-device.playing .live-panel{margin:0;height:54px;padding:5px 7px}
+
+.announcement-slot{display:none}
+body.playing .announcement-slot{display:block;grid-column:1/-1;order:-1;flex:none;width:100%;height:34px;overflow:hidden;pointer-events:none}
+#live-announcement{height:32px;max-width:660px;margin:auto;display:flex;align-items:center;justify-content:center;border:1px solid #e4bc42;border-radius:9px;background:#fff0b1;color:#143f50;padding:3px 8px;font-size:12px;font-weight:700;text-align:center;line-height:1.1;transform:translateY(-115%);opacity:0;visibility:hidden;transition:transform .18s ease,opacity .18s,visibility .18s}
+#live-announcement.visible{transform:translateY(0);opacity:1;visibility:visible}
+#live-announcement[data-kind="record"]{background:#ffdb69}
+body.touch-device.playing main{--board-width:min(100%,calc((var(--game-space) - 232px) * .709677))}
+@media(prefers-reduced-motion:reduce){#live-announcement{transition:none}}
