@@ -391,3 +391,41 @@ body.touch-device.playing main{--board-width:min(100%,calc((var(--game-space) - 
  body:not(.touch-device).started .value-label{font-size:12px}
  body:not(.touch-device).started .live-panel{margin-top:12px}
 }
+
+/* Desktop: reserve visible space for live points instead of horizontal chips. */
+@media(min-width:761px){
+ body:not(.touch-device).started .score-card,body:not(.touch-device).started .next-card{height:auto;min-height:0;padding:12px}
+ body:not(.touch-device).started .score-number{font-size:32px;margin:8px 0}
+ body:not(.touch-device).started .record{position:static;display:flex;flex-direction:row;justify-content:space-between;font-size:12px;padding-top:8px}
+ body:not(.touch-device).started .next-card canvas{position:static;width:100px;height:75px;margin:6px auto}
+ body:not(.touch-device).started .next-card strong{max-width:none;font-size:16px;margin:4px 0}
+ body:not(.touch-device).started .value-label{font-size:12px}
+
+ body:not(.touch-device).started .left-rail{display:flex;flex-direction:column;gap:12px;max-height:calc(100dvh - 146px);min-height:0}
+ body:not(.touch-device).started .score-card{flex:none}
+ body:not(.touch-device).started .live-panel{order:1;margin:0;flex:1 1 auto;min-height:94px;max-height:230px;display:flex;flex-direction:column}
+ body:not(.touch-device).started .next-card{order:2;margin:0;flex:none}
+ body:not(.touch-device).started .live-heading{flex-wrap:wrap;white-space:normal}
+ body:not(.touch-device).started .live-heading small{width:100%;margin-left:11px}
+ body:not(.touch-device).started .live-players{display:flex;flex-direction:column;overflow-x:hidden;overflow-y:auto;touch-action:pan-y;min-height:0}
+ body:not(.touch-device).started .live-player{width:100%;justify-content:space-between;gap:6px;min-height:28px;font-size:12px}
+ body:not(.touch-device).started .live-player span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+ body:not(.touch-device).started .live-player b{flex:none}
+ body:not(.touch-device).started .live-empty{white-space:normal}
+}
+@media(min-width:761px) and (max-height:650px){
+ body:not(.touch-device).started .next-card{padding:8px;position:relative;min-height:66px;text-align:left}
+ body:not(.touch-device).started .next-card canvas{position:absolute;right:5px;bottom:5px;width:70px;height:52px;margin:0}
+ body:not(.touch-device).started .next-card strong{font-size:13px;max-width:calc(100% - 65px)}
+ body:not(.touch-device).started .next-card .value-label{font-size:11px}
+}
+
+.player-sharing{margin-top:20px;border-top:1px solid #9ed0c955;padding-top:18px;color:#e8f5eb;font-size:14px}
+.player-sharing summary{cursor:pointer;font-weight:750}.player-sharing p{line-height:1.6;font-size:13px}
+#player-code-output{display:block;margin-top:16px;padding:16px;background:#fff0b1;color:#143f50;border-radius:10px;font:700 20px ui-monospace,monospace;overflow-wrap:anywhere;user-select:all}
+#player-code-output[hidden]{display:none}
+#player-link{width:min(460px,94vw);border:2px solid #e9bd40;background:linear-gradient(145deg,#f9f8df,#d5e9df);color:#12475a}
+#player-link p{font-size:14px;line-height:1.6}#player-link label{display:block;font-weight:750;margin:15px 0 7px}
+#player-link input{width:100%;padding:13px;border:2px solid #58abae;border-radius:10px;background:#fffef4;font-size:18px;color:#12475a}
+#player-link .primary{width:100%;background:#ffd66b;color:#12475a;border-color:#c89e26}
+#player-link-error{color:#a72f2f;min-height:1em}#player-name-link{display:block;width:100%;margin-top:12px;text-decoration:underline}
