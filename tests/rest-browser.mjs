@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 const browser=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
 try{
 const page=await browser.newPage({viewport:{width:390,height:844}});
+await page.addInitScript(()=>localStorage.setItem('almind-score-nickname','Testspiller'));
+await page.route('https://*.supabase.co/**',r=>r.abort());
 await page.goto(`${BASE_URL}/?test=1`);await page.waitForFunction(()=>window.__mergeTest?.ready);
 const result=await page.evaluate(()=>{
  const t=window.__mergeTest;t.start();

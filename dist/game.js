@@ -1,3 +1,4 @@
+import {findBallEscape} from './ball-collision.js?v=ball-fix-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=live-players-v1';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
 import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=autosave-v1';
@@ -45,7 +46,7 @@ function shake(){
  $(".arena-wrap").animate([{translate:"0"},{translate:"-6px"},{translate:"6px"},{translate:"-5px"},{translate:"5px"},{translate:"-3px"},{translate:"0"}],{duration:600});syncPowers();
 }
 function shakeKick(direction){
- for(const b of bodies){if(!b.plugin.alive)continue;Matter.Sleeping.set(b,false);Body.setVelocity(b,{x:Math.max(-3.2,Math.min(3.2,b.velocity.x+direction*2.6)),y:Math.min(b.velocity.y,-.6)});Body.setAngularVelocity(b,Math.max(-.07,Math.min(.07,b.angularVelocity+direction*.035)));}
+ for(const b of bodies){if(!b.plugin.alive)continue;Matter.Sleeping.set(b,false);Body.setVelocity(b,{x:Math.max(-6.4,Math.min(6.4,b.velocity.x+direction*5.2)),y:Math.min(b.velocity.y,-.6)});Body.setAngularVelocity(b,Math.max(-.07,Math.min(.07,b.angularVelocity+direction*.035)));}
 }
 function removeAt(x,y){
  if(!removing||mode!=="playing"||powers.remove<1)return false;
@@ -126,8 +127,24 @@ function makeTileBody(tier,x,y){
   const centre=Vertices.centre(outline);
   // Visible area already adds mass; higher tiers also have a little more density.
   const body=Bodies.fromVertices(x,y,[outline],{restitution:.24,friction:.12,frictionStatic:.2,frictionAir:.008,density:.002*(1+tier*.08),slop:.02},true,.001,0,.001);
-  body.plugin={tile:true,tier,alive:true,age:0,danger:0,artOffset:centre};
+  body.plugin={tile:true,tier,alive:true,age:0,danger:0,artOffset:centre,outline:outline.map(p=>({x:p.x-centre.x,y:p.y-centre.y})),ballRadius:Math.max(...outline.map(p=>Math.hypot(p.x-centre.x,p.y-centre.y)))};
   return body;
+}
+function freeEmbeddedBalls(){
+ const balls=bodies.filter(b=>b.plugin.alive&&b.plugin.tier===0);
+ if(!balls.length)return;
+ const outline=b=>{const c=Math.cos(b.angle),s=Math.sin(b.angle);return b.plugin.outline.map(p=>({x:b.position.x+p.x*c-p.y*s,y:b.position.y+p.x*s+p.y*c}));};
+ const polygons=new Map(bodies.filter(b=>b.plugin.alive).map(b=>[b,outline(b)]));
+ for(const ball of balls){
+  const others=[...polygons].filter(([b])=>b!==ball).map(([,p])=>p);
+  const target=findBallEscape(ball.position,ball.plugin.ballRadius,others,{left:LEFT,right:RIGHT,floor:FLOOR});
+  if(!target)continue;
+  const dx=target.x-ball.position.x,dy=target.y-ball.position.y,length=Math.hypot(dx,dy),nx=dx/length,ny=dy/length;
+  const inward=Math.min(0,ball.velocity.x*nx+ball.velocity.y*ny);
+  Body.setPosition(ball,target);Body.setVelocity(ball,{x:ball.velocity.x-inward*nx,y:ball.velocity.y-inward*ny});
+  ball.positionImpulse.x=ball.positionImpulse.y=0;
+  polygons.set(ball,outline(ball));
+ }
 }
 function refreshPhysics(){
   bodies=bodies.map(old=>{
@@ -190,7 +207,7 @@ function step(dt){
   if(keys.has('ArrowLeft'))aim-=260*dt;if(keys.has('ArrowRight'))aim+=260*dt;
   aim=Math.max(LEFT+tileRadius(round.current)+1,Math.min(RIGHT-tileRadius(round.current)-1,aim));
   // Four small 240 Hz solves keep fast, heavy tiles from crossing thin silhouette parts.
-  for(let sub=0;sub<4;sub++){Engine.update(engine,dt*250);processMerges();}
+  for(let sub=0;sub<4;sub++){Engine.update(engine,dt*250);processMerges();freeEmbeddedBalls();}
   let worst=0;
   for(const body of bodies){body.plugin.age+=dt;body.plugin.danger=advanceDanger(body.plugin.danger,Math.min(...body.vertices.map(v=>v.y))<TOP,dt);worst=Math.max(worst,body.plugin.danger);}
   dangerProgress=Math.min(1,worst/TOP_WAIT);
