@@ -56,24 +56,27 @@ export function renderLivePlayers(snapshot,status){
 }
 
 export function createLiveNotices({canNotify,show,hide,duration=3000,foldDuration=200}){
- let ready=false,players=new Set(),records=new Set(),queue=[],timer=null,foldTimer=null,showing=false;
- function clear(){clearTimeout(timer);clearTimeout(foldTimer);queue=[];showing=false;hide();}
+ let ready=false,players=new Set(),records=new Set(),gameovers=new Set(),suspended=false,current=null,queue=[],timer=null,foldTimer=null,showing=false;
+ function clear(){clearTimeout(timer);clearTimeout(foldTimer);queue=[];current=null;showing=false;hide();}
  function next(){
-  if(showing||!queue.length||!canNotify())return;
-  showing=true;show(queue.shift());
-  timer=setTimeout(()=>{hide();foldTimer=setTimeout(()=>{showing=false;next();},foldDuration);},duration);
+  if(suspended||showing||!queue.length||!canNotify())return;
+  showing=true;current=queue.shift();show(current);
+  timer=setTimeout(()=>{current=null;hide();foldTimer=setTimeout(()=>{showing=false;next();},foldDuration);},duration);
  }
- return {clear,observe(snapshot,status){
+ return {clear,suspend(){suspended=true;clearTimeout(timer);clearTimeout(foldTimer);if(current)queue.unshift(current);current=null;showing=false;hide();},resume(){suspended=false;next();},observe(snapshot,status){
   if(status!=='connected'){ready=false;clear();return;}
   const rows=snapshot.players||[],events=snapshot.records||[];
   const newPlayers=rows.filter(p=>!p.is_me&&!players.has(p.player_key));
   const newRecords=events.filter(e=>!records.has(e.id));
+  const ended=snapshot.gameovers||[],newEnded=ended.filter(e=>!e.is_me&&!gameovers.has(e.id));
+  gameovers=new Set(ended.map(e=>e.id));
   players=new Set(rows.map(p=>p.player_key));records=new Set(events.map(e=>e.id));
   if(!ready){ready=true;return;}
   if(!canNotify()){clear();return;}
   // Records take precedence; bound the queue during a burst of activity.
   const notices=newRecords.map(e=>({kind:'record',text:`🏆 Ny ${e.kind==='all'?'totalrekord':'ugerekord'}! ${e.nickname} · ${fmt.format(e.score)} point`}));
+  notices.push(...newEnded.map(e=>({kind:'gameover',text:`Game Over · ${e.nickname} · ${fmt.format(e.score)} point`})));
   if(newPlayers.length)notices.push({kind:'join',text:newPlayers.length===1?`● ${newPlayers[0].nickname} er online`:`● ${newPlayers.slice(0,2).map(p=>p.nickname).join(' og ')}${newPlayers.length>2?` + ${newPlayers.length-2} mere`:''} er online`});
-  const combined=[...queue,...notices];queue=[...combined.filter(n=>n.kind==='record'),...combined.filter(n=>n.kind!=='record')].slice(0,3);next();
+  const combined=[...queue,...notices];queue=[...combined.filter(n=>n.kind==='record'),...combined.filter(n=>n.kind==='gameover'),...combined.filter(n=>n.kind==='join')].slice(0,10);next();
  }};
 }

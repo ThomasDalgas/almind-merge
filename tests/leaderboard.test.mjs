@@ -16,3 +16,9 @@ test('Concurrent first requests share one identity and a reloaded browser reuses
  await Promise.all([api.start(),api.start()]);await createScoreApi(config,{fetcher,store}).start();
  assert.equal(calls.filter(c=>c.url.includes('/signup')).length,1);assert.equal(calls.at(-1).options.headers.Authorization,'Bearer same');
 });
+test('Missing Game Over migration falls back to saving, but server failures stay retryable',async()=>{
+ const calls=[],store={get:()=>JSON.stringify({access_token:'token',expires_at:Date.now()/1000+3600}),set:()=>{}};let code='PGRST202';
+ const fetcher=async(url)=>{calls.push(url);return url.endsWith('am_game_over')?{ok:false,json:async()=>({code,message:'test error'})}:{ok:true,json:async()=>2};};
+ const api=createScoreApi({url:'https://test.example',key:'public'},{fetcher,store});assert.equal(await api.gameOver('r','Niklas',[['d',0,0]],1),2);assert.ok(calls.at(-1).endsWith('am_submit_round'));
+ code='42501';const count=calls.length;await assert.rejects(api.gameOver('r','Niklas',[],1),/test error/);assert.equal(calls.length,count+1);
+});

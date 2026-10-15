@@ -1,9 +1,9 @@
-import {earnedPowers,createRewardNotices} from './reward-notices.js?v=rewards-v1';
+import {earnedPowers,createRewardNotices} from './reward-notices.js?v=gameover-notices-v1';
 import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=ball-fix-v1';
-import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=live-recovery-v1';
+import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=gameover-notices-v1';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=rewards-v1';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=gameover-notices-v1';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=svend-bonus-v2';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=gallery-v1';
 const $=s=>document.querySelector(s);
@@ -292,8 +292,8 @@ function buildFamily(){
 let departed=false;
 const rewardNotices=createRewardNotices({
  canShow:()=>mode==='playing'&&!document.hidden,
- show:notice=>{const el=$('#reward-announcement');el.textContent=notice.text;el.classList.add('visible');document.body.classList.add('reward-notice');},
- hide:()=>{$('#reward-announcement').classList.remove('visible');document.body.classList.remove('reward-notice');},
+ show:notice=>{liveNotices.suspend();const el=$('#reward-announcement');el.textContent=notice.text;el.classList.add('visible');document.body.classList.add('reward-notice');},
+ hide:()=>{$('#reward-announcement').classList.remove('visible');document.body.classList.remove('reward-notice');liveNotices.resume();},
  sound:()=>{effectTone(659,659,0,.13,.07,'triangle');effectTone(830,830,.1,.14,.065,'triangle');effectTone(1047,1319,.2,.28,.07,'sine');}
 });
 const liveNotices=createLiveNotices({canNotify:()=>mode==='playing'&&!document.hidden,show:notice=>{const el=$('#live-announcement');el.textContent=notice.text;el.dataset.kind=notice.kind;el.classList.add('visible');},hide:()=>$('#live-announcement').classList.remove('visible')});

@@ -19,7 +19,7 @@ export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},no
   current.events.push([kind,tier,Math.round(time*1000)]);
   current.duration=Math.max(1,Math.round(time*1000));persist(current);
  }
- function end(time){if(!current)return;if(!current.events.length){jobs.delete(current.key);current=null;return;}current.duration=Math.max(current.duration,Math.round(time*1000));current.final=true;persist(current);current=null;void flush();}
+ function end(time){if(!current)return;if(!current.events.length){jobs.delete(current.key);current=null;return;}current.duration=Math.max(current.duration,Math.round(time*1000));current.final=true;current.gameOverAt=now();persist(current);current=null;void flush();}
  async function flush(){
   if(flushing||!api.ready)return;flushing=true;
   try{for(const item of jobs.values()){
@@ -32,7 +32,8 @@ export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},no
     // Never weaken the server's elapsed-time check, even after a delayed connection.
     if(item.duration>now()-item.ticket.readyAt+1000)continue;
     const count=item.events.length,final=item.final,events=item.events.map(e=>[...e]);
-    const score=await (final?api.submit:api.checkpoint)(item.ticket.id,item.nickname,events,item.duration);
+    const save=final?(item.gameOverAt&&now()-item.gameOverAt<60000&&api.gameOver?api.gameOver:api.submit):api.checkpoint;
+    const score=await save(item.ticket.id,item.nickname,events,item.duration);
     item.savedCount=count;item.savedFinal=final;
     onStatus(`Din score på ${new Intl.NumberFormat('da-DK').format(score)} er gemt!`);
     if(item.events.length===count&&item.final===final){

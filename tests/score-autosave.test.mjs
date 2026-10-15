@@ -20,3 +20,9 @@ test('a new event arriving during upload remains queued',async()=>{
 test('starting another round never discards an unsent round',async()=>{
  const f=fixture(),s=createScoreAutosave(f);await s.start('Niklas');s.event('d',0,0);await s.start('Niklas');s.event('d',0,0);assert.equal(f.data.size,2);await s.flush();assert.deepEqual(f.calls.map(x=>x[0]),['submit','checkpoint']);assert.notEqual(f.calls[0][1],f.calls[1][1]);
 });
+test('Only fresh actual Game Over uses the event endpoint; restart and stale recovery stay quiet',async()=>{
+ const f=fixture();f.api.gameOver=async(...a)=>{f.calls.push(['gameover',...a]);return 2;};
+ const s=createScoreAutosave(f);await s.start('Niklas');s.event('d',0,0);s.end(.5);await new Promise(r=>setImmediate(r));assert.equal(f.calls[0][0],'gameover');
+ await s.start('Niklas');s.event('d',0,0);await s.start('Niklas');await s.flush();assert.equal(f.calls.at(-1)[0],'submit');
+ s.event('d',0,0);f.api.ready=false;s.end(.5);f.advance(61000);f.api.ready=true;await createScoreAutosave(f).flush();assert.equal(f.calls.at(-1)[0],'submit');
+});

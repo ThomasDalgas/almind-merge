@@ -60,3 +60,21 @@ test('Fallback response is discarded after lifecycle change',async()=>{
  const live=createLivePlayers({api:{live:async()=>{throw new Error('failure');},liveList:()=>new Promise(r=>release=r)},getTicket:async()=>null,getState:()=>({mode}),getNickname:()=>'',render:(...args)=>renders.push(args),visible:()=>false,online:()=>true});
  live.changed();await flush();mode='over';live.changed();release({players:[{nickname:'stale'}]});await flush();assert.equal(renders.length,0);release({players:[]});await flush();assert.equal(renders[0][1],'idle');
 });
+
+test('Game Over excludes self/history, deduplicates and waits behind rewards for three visible seconds',t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const shown=[];let hidden=0;
+ const n=createLiveNotices({canNotify:()=>true,show:e=>shown.push(e),hide:()=>hidden++});
+ const old={id:'old',nickname:'Old',score:2},self={id:'self',nickname:'Me',score:2,is_me:true},other={id:'new',nickname:'Niklas',score:12345,is_me:false};
+ n.observe({gameovers:[old]},'connected');n.suspend();
+ n.observe({gameovers:[old,self,other]},'connected');t.mock.timers.tick(5000);assert.equal(shown.length,0);
+ n.resume();assert.match(shown[0].text,/Game Over · Niklas · 12.345 point/);const h=hidden;
+ t.mock.timers.tick(2999);assert.equal(hidden,h);t.mock.timers.tick(1);assert.equal(hidden,h+1);
+ t.mock.timers.tick(200);n.observe({gameovers:[old,self,other]},'connected');assert.equal(shown.length,1);
+ n.observe({},'offline');n.observe({gameovers:[other]},'connected');assert.equal(shown.length,1);
+});
+test('A live toast interrupted by a reward is shown again after the reward',t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const shown=[];
+ const n=createLiveNotices({canNotify:()=>true,show:e=>shown.push(e),hide:()=>{}});
+ n.observe({},'connected');n.observe({gameovers:[{id:'r',nickname:'Tina',score:100}]},'connected');
+ t.mock.timers.tick(1500);n.suspend();t.mock.timers.tick(5000);n.resume();assert.equal(shown.length,2);n.clear();
+});

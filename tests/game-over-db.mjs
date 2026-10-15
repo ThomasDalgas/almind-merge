@@ -1,0 +1,22 @@
+import fs from 'node:fs/promises';import assert from 'node:assert/strict';
+const {PGlite}=await import(process.env.PGLITE_MODULE);const db=new PGlite();
+await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;`);
+for(const f of (await fs.readdir(new URL('../supabase/migrations/',import.meta.url))).sort())await db.exec(await fs.readFile(new URL('../supabase/migrations/'+f,import.meta.url),'utf8'));
+await db.exec(await fs.readFile(new URL('../supabase/migrations/202610150009_game_over_notices.sql',import.meta.url),'utf8'));
+const me='00000000-0000-4000-8000-000000000001',other='00000000-0000-4000-8000-000000000002';
+await db.query('insert into auth.users values($1),($2)',[me,other]);
+async function login(id){await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated');}
+await login(me);await db.query("select public.am_claim_name('Thomas')");
+const start=async()=> (await db.query('select public.am_start_round() as id')).rows[0].id;
+const snap=async()=> (await db.query('select public.am_live_snapshot() as s')).rows[0].s;
+const finish=async(id,fn='am_game_over',events='[["d",0,0]]')=>db.query(`select public.${fn}($1,'Thomas',$2,1)`,[id,events]);
+const id=await start();await db.query("select public.am_live_update($1,'Thomas',9999,0,true)",[id]);
+await assert.rejects(finish(id,'am_game_over','[["m",10,0]]'),/Invalid merge/);assert.equal((await snap()).gameovers.length,0);
+await db.query("select public.am_live_update($1,'Thomas',0,0,false)",[id]);await finish(id);await finish(id);
+let events=(await snap()).gameovers;assert.equal(events.length,1);assert.equal(events[0].score,2);assert.equal(events[0].is_me,true);
+await login(other);events=(await snap()).gameovers;assert.equal(events[0].is_me,false);await assert.rejects(finish(id),/Unknown round/);
+await assert.rejects(db.query('select * from public.am_game_over_notices'),/permission denied/);
+await login(me);const restart=await start();await db.query("select public.am_live_update($1,'Thomas',2,0,true)",[restart]);await finish(restart,'am_submit_round');await finish(restart);assert.equal((await snap()).gameovers.length,1);
+const offline=await start();await finish(offline);assert.equal((await snap()).gameovers.length,1);
+await db.exec('reset role');await db.query('update public.am_rounds set hidden=true where id=$1',[id]);assert.equal((await snap()).gameovers.length,0);
+console.log('PASS verified final score, own/other identity, explicit endings only, retries, migration rerun, RLS, hidden rounds, rejected forged scores/ownership');await db.close();
