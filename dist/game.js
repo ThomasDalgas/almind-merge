@@ -206,7 +206,21 @@ function processMerges(){
   for(const [a,b] of pending){const x=(a.position.x+b.position.x)/2,y=(a.position.y+b.position.y)/2,tier=mergeRound(round,a.plugin.tier,b.plugin.tier);Composite.remove(engine.world,[a,b]);bodies=bodies.filter(v=>v!==a&&v!==b);if(tier!==null){scoreEvent(tier===CLEAR_PAIR&&round.svendBonus?'b':'m',a.plugin.tier,time);if(tier===CLEAR_PAIR){burst(x,y,VALUES.length-1,true);tileSound(VALUES.length-1);floats.push({x,y,text:round.svendBonus?`+${numberFormat.format(round.svendBonus)}!`:'Mere plads!',life:1.8});if(round.svendBonus)rewardNotices.push({kind:'svend',text:`🎆 To Svend! +${numberFormat.format(round.svendBonus)} bonuspoint`});setStatus('To Svend — mere plads til familien!');continue;}const n=spawn(tier,x,y);Body.setVelocity(n,{x:(a.velocity.x+b.velocity.x)*.18,y:Math.min(0,(a.velocity.y+b.velocity.y)*.18)});burst(x,y,tier,true);scoreFloat(x,y,VALUES[tier]);tileSound(tier);}}
   if(pending.length)syncUI();pending=[];
 }
-function drop(){if(removing||mode!=='playing'||document.querySelector('dialog[open]'))return;const tier=dropRound(round,time);if(tier===null)return;scoreEvent('d',tier,time);const r=tileRadius(tier),x=Math.max(LEFT+r+1,Math.min(RIGHT-r-1,aim));spawn(tier,x,SPAWN);scoreFloat(x,SPAWN+25,VALUES[tier]);dropSound();syncUI();setStatus('Find en makker. Skab noget større.');}
+function drop(){
+ if(removing||mode!=='playing'||document.querySelector('dialog[open]')||time-round.lastDrop<.5)return;
+ const r=tileRadius(round.current),x=Math.max(LEFT+r+1,Math.min(RIGHT-r-1,aim));
+ const candidate=makeTileBody(round.current,x,SPAWN),bounds=candidate.bounds;
+ // Check the actual convex parts of both silhouettes, not their bounding circles.
+ // Never award points, consume the preview or create a body inside the pile.
+ const parts=candidate.parts.length>1?candidate.parts.slice(1):[candidate];
+ const occupied=bodies.filter(b=>b.plugin.alive);
+ if(bounds.min.x<LEFT||bounds.max.x>RIGHT||bounds.min.y<0||bounds.max.y>FLOOR||parts.some(part=>Matter.Query.collides(part,occupied).length)){
+  setStatus('Ingen plads her — sigt et andet sted, eller brug Ryst / Fjern.');return;
+ }
+ const tier=dropRound(round,time);if(tier===null)return;
+ bodies.push(candidate);Composite.add(engine.world,candidate);
+ scoreEvent('d',tier,time);scoreFloat(x,SPAWN+25,VALUES[tier]);dropSound();syncUI();setStatus('Find en makker. Skab noget større.');
+}
 function showOverlay(title,text,button,kicker='ET LILLE ØJEBLIK',foot='Træk for at sigte · Slip for at droppe'){
   $('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');$('#score-result-open').hidden=true;
   $('.game-logo').hidden=true;$('#overlay-title').textContent=title;$('#overlay-text').textContent=text;$('#play').textContent=button;$('#overlay-kicker').textContent=kicker;$('#overlay-foot').textContent=foot;$('#overlay').hidden=false;
