@@ -53,7 +53,11 @@ export async function replaceTiles(next){
   const previous=tiles;tiles=next;
   try{await preloadImages();await saveTheme();}catch(err){tiles=previous;throw err;}
 }
-export async function preloadImages(){await Promise.all([...Object.values(BUILTIN),...tiles.map((t,i)=>tileSource(i)).filter(Boolean)].map(getImage));}
+export async function preloadImages(onProgress=()=>{}){
+ const sources=[...new Set([...Object.values(BUILTIN),...tiles.map((t,i)=>tileSource(i)).filter(Boolean)])];let done=0;
+ onProgress(done,sources.length);
+ await Promise.all(sources.map(async src=>{await getImage(src);onProgress(++done,sources.length);}));
+}
 export async function getImage(src){
   if(images.has(src))return images.get(src);
   const img=new Image();await new Promise((res,rej)=>{img.onload=res;img.onerror=()=>rej(new Error('Billedet kunne ikke læses.'));img.src=src;});const c=document.createElement('canvas'),scale=96/Math.max(img.naturalWidth,img.naturalHeight);c.width=Math.max(1,Math.round(img.naturalWidth*scale));c.height=Math.max(1,Math.round(img.naturalHeight*scale));const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(img,0,0,c.width,c.height);outlines.set(src,outlineFromAlpha(g.getImageData(0,0,c.width,c.height).data,c.width,c.height));images.set(src,img);return img;

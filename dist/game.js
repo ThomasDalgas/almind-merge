@@ -5,7 +5,7 @@ import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-play
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
 import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=gameover-notices-v1';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=svend-bonus-v2';
-import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=gallery-v1';
+import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
 const canvas=$('#game'),ctx=canvas.getContext('2d');
 const W=440,H=620,LEFT=24,RIGHT=416,FLOOR=593,TOP=128,SPAWN=66;
@@ -172,6 +172,7 @@ function freeEmbeddedBalls(){
  }
 }
 function refreshPhysics(){
+  dropPreview=null;
   bodies=bodies.map(old=>{
     const body=makeTileBody(old.plugin.tier,old.position.x,old.position.y);
     Body.setAngle(body,old.angle);Body.setVelocity(body,old.velocity);Body.setAngularVelocity(body,old.angularVelocity);
@@ -206,19 +207,24 @@ function processMerges(){
   for(const [a,b] of pending){const x=(a.position.x+b.position.x)/2,y=(a.position.y+b.position.y)/2,tier=mergeRound(round,a.plugin.tier,b.plugin.tier);Composite.remove(engine.world,[a,b]);bodies=bodies.filter(v=>v!==a&&v!==b);if(tier!==null){scoreEvent(tier===CLEAR_PAIR&&round.svendBonus?'b':'m',a.plugin.tier,time);if(tier===CLEAR_PAIR){burst(x,y,VALUES.length-1,true);tileSound(VALUES.length-1);floats.push({x,y,text:round.svendBonus?`+${numberFormat.format(round.svendBonus)}!`:'Mere plads!',life:1.8});if(round.svendBonus)rewardNotices.push({kind:'svend',text:`🎆 To Svend! +${numberFormat.format(round.svendBonus)} bonuspoint`});setStatus('To Svend — mere plads til familien!');continue;}const n=spawn(tier,x,y);Body.setVelocity(n,{x:(a.velocity.x+b.velocity.x)*.18,y:Math.min(0,(a.velocity.y+b.velocity.y)*.18)});burst(x,y,tier,true);scoreFloat(x,y,VALUES[tier]);tileSound(tier);}}
   if(pending.length)syncUI();pending=[];
 }
-function drop(){
- if(removing||mode!=='playing'||document.querySelector('dialog[open]')||time-round.lastDrop<.5)return;
- const r=tileRadius(round.current),x=Math.max(LEFT+r+1,Math.min(RIGHT-r-1,aim));
- const candidate=makeTileBody(round.current,x,SPAWN),bounds=candidate.bounds;
- // Check the actual convex parts of both silhouettes, not their bounding circles.
- // Never award points, consume the preview or create a body inside the pile.
+let dropPreview=null;
+function dropPlacement(){
+ const tier=round.current,r=tileRadius(tier),x=Math.max(LEFT+r+1,Math.min(RIGHT-r-1,aim));
+ // Reuse the preview shape: no polygon decomposition or new physics IDs each frame.
+ if(!dropPreview||dropPreview.plugin.tier!==tier)dropPreview=makeTileBody(tier,x,SPAWN);
+ Body.setPosition(dropPreview,{x,y:SPAWN});
+ const candidate=dropPreview,bounds=candidate.bounds;
  const parts=candidate.parts.length>1?candidate.parts.slice(1):[candidate];
  const occupied=bodies.filter(b=>b.plugin.alive);
- if(bounds.min.x<LEFT||bounds.max.x>RIGHT||bounds.min.y<0||bounds.max.y>FLOOR||parts.some(part=>Matter.Query.collides(part,occupied).length)){
-  setStatus('Ingen plads her — sigt et andet sted, eller brug Ryst / Fjern.');return;
- }
+ const blocked=bounds.min.x<LEFT||bounds.max.x>RIGHT||bounds.min.y<0||bounds.max.y>FLOOR||parts.some(part=>Matter.Query.collides(part,occupied).length>0);
+ return {candidate,x,blocked};
+}
+function drop(){
+ if(removing||mode!=='playing'||document.querySelector('dialog[open]')||time-round.lastDrop<.5)return;
+ const {candidate,x,blocked}=dropPlacement();
+ if(blocked){setStatus('Ingen plads her — sigt et andet sted, eller brug Ryst / Fjern.');return;}
  const tier=dropRound(round,time);if(tier===null)return;
- bodies.push(candidate);Composite.add(engine.world,candidate);
+ dropPreview=null;bodies.push(candidate);Composite.add(engine.world,candidate);
  scoreEvent('d',tier,time);scoreFloat(x,SPAWN+25,VALUES[tier]);dropSound();syncUI();setStatus('Find en makker. Skab noget større.');
 }
 function showOverlay(title,text,button,kicker='ET LILLE ØJEBLIK',foot='Træk for at sigte · Slip for at droppe'){
@@ -237,7 +243,7 @@ function start(){
   scoreRoundStart();
   ensureAudio();if(audioCtx){recordedBuffer('assets/game-over-voice.m4a').catch(()=>{});recordedBuffer('assets/danger-riser.m4a').catch(()=>{});}
   document.body.classList.add('started');fireworks=[];dangerProgress=0;$('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');
-  rewardNotices.clear();stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound(availableSvendBonus);powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
+  dropPreview=null;rewardNotices.clear();stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound(availableSvendBonus);powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
 }
 function pause(){if(mode!=='playing')return;mode='paused';cancelRemove();lockPlayScreen(false);flushScore();refreshLeaderboard();keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');livePlayers.changed();}
 function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;mode='playing';syncPowers();lockPlayScreen(true);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();}
@@ -271,7 +277,12 @@ function render(){
   ctx.beginPath();ctx.moveTo(LEFT,TOP+32);ctx.lineTo(LEFT,FLOOR-15);ctx.quadraticCurveTo(LEFT,FLOOR,LEFT+15,FLOOR);ctx.lineTo(RIGHT-15,FLOOR);ctx.quadraticCurveTo(RIGHT,FLOOR,RIGHT,FLOOR-15);ctx.lineTo(RIGHT,TOP+32);ctx.strokeStyle='#07536e';ctx.lineWidth=8;ctx.stroke();ctx.strokeStyle='#29a8b4';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='#f8d36a';ctx.lineWidth=1;ctx.stroke();
   for(const body of bodies){const d=body.plugin;if(!d.alive)continue;const r=tileRadius(d.tier),o=d.artOffset,a=body.angle;drawTile(ctx,d.tier,body.position.x-o.x*Math.cos(a)+o.y*Math.sin(a),body.position.y-o.x*Math.sin(a)-o.y*Math.cos(a),r,{rotation:a});if(d.danger>.8){ctx.strokeStyle=`rgba(184,78,62,${Math.min(.8,d.danger/TOP_WAIT)})`;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(body.position.x,body.position.y,r+3,-Math.PI/2,-Math.PI/2+Math.PI*2*d.danger/TOP_WAIT);ctx.stroke();}}
   if(mode==='playing'||mode==='paused'){
-    const radius=tileRadius(round.current),x=Math.max(LEFT+radius+1,Math.min(RIGHT-radius-1,aim));ctx.strokeStyle='#92a98060';ctx.lineWidth=1;ctx.setLineDash([3,7]);ctx.beginPath();ctx.moveTo(x,SPAWN+radius+7);ctx.lineTo(x,FLOOR-6);ctx.stroke();ctx.setLineDash([]);drawTile(ctx,round.current,x,SPAWN,radius,{alpha:time-round.lastDrop<.5?.55:1});ctx.font='9px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillStyle='#879a78';ctx.fillText('↓',x,Math.max(15,SPAWN-radius-10));
+    const radius=tileRadius(round.current),{x,blocked,candidate}=dropPlacement();canvas.dataset.dropBlocked=String(blocked);ctx.strokeStyle=blocked?'#c52d3c':'#92a98060';ctx.lineWidth=1;ctx.setLineDash([3,7]);ctx.beginPath();ctx.moveTo(x,SPAWN+radius+7);ctx.lineTo(x,FLOOR-6);ctx.stroke();ctx.setLineDash([]);drawTile(ctx,round.current,x,SPAWN,radius,{alpha:time-round.lastDrop<.5?.55:1});ctx.font='9px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillStyle='#879a78';ctx.fillText(blocked?'× Ingen plads':'↓',x,Math.max(15,SPAWN-radius-10));
+    if(blocked){
+      ctx.beginPath();candidate.plugin.outline.forEach((p,i)=>{const px=candidate.position.x+p.x,py=candidate.position.y+p.y;i?ctx.lineTo(px,py):ctx.moveTo(px,py);});ctx.closePath();
+      ctx.fillStyle='#ed263e88';ctx.fill();ctx.strokeStyle='#b8152c';ctx.lineWidth=2;ctx.stroke();
+      ctx.font='bold 11px -apple-system,sans-serif';ctx.fillStyle='#ae172a';ctx.fillText('× Ingen plads',x,Math.max(15,SPAWN-radius-10));
+    }
   }
   for(const p of particles){ctx.save();ctx.globalAlpha=Math.min(1,p.life*2);if(p.firework){ctx.beginPath();ctx.moveTo(p.x-p.vx*.035,p.y-p.vy*.035);ctx.lineTo(p.x,p.y);ctx.strokeStyle=p.color;ctx.lineWidth=p.size*.65;ctx.stroke();}ctx.fillStyle=p.color;ctx.translate(p.x,p.y);ctx.rotate(p.life*3);ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size);ctx.restore();}
   for(const f of floats){ctx.globalAlpha=Math.min(1,f.life*2);ctx.fillStyle='#426843';ctx.font='600 15px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillText(f.text,f.x,f.y);}ctx.globalAlpha=1;
@@ -319,8 +330,21 @@ const mobileDisplay=initMobileDisplay({isPlaying:()=>mode==='playing',pause,canc
 initLeaderboard();updateSoundButton();buildFamily();requestAnimationFrame(frame);
 $('#play').disabled=true;
 (async()=>{
-  try{await Promise.all([preloadImages(),scoreApi.gameRules().then(r=>{availableSvendBonus=r?.svend_bonus===SVEND_BONUS?SVEND_BONUS:0;}).catch(()=>{})]);assetsReady=true;$('#play').disabled=false;buildFamily();}
-  catch(err){toast(err.message||'Figurerne kunne ikke indlæses. Genindlæs siden.');}
+ let imageDone=0,imageTotal=11,rulesDone=false,failed=false;
+ const progress=()=>{
+  if(failed)return;
+  const percent=Math.round((imageDone+Number(rulesDone))/(imageTotal+1)*100);
+  $('#load-progress').value=percent;
+  $('#load-label').textContent=imageDone===imageTotal&&!rulesDone?`Henter spilindstillinger … ${percent}%`:`Indlæser figurer … ${percent}%`;
+ };
+ try{
+  await Promise.all([
+   preloadImages((done,total)=>{imageDone=done;imageTotal=total;progress();}),
+   scoreApi.gameRules().then(r=>{availableSvendBonus=r?.svend_bonus===SVEND_BONUS?SVEND_BONUS:0;}).catch(()=>{}).finally(()=>{rulesDone=true;progress();})
+  ]);
+  buildFamily();assetsReady=true;$('#play').disabled=false;$('#load-label').textContent='Klar til at spille · 100%';
+ }catch(err){failed=true;$('#load-label').textContent='Indlæsningen mislykkedes. Prøv igen.';$('#load-retry').hidden=false;}
 })();
+$('#load-retry').onclick=()=>location.reload();
 // Opt-in test interface: never present on the ordinary page.
 if(new URLSearchParams(location.search).get('test')==='1')window.__mergeTest={shake,removeAt,toggleRemove(){removing=!removing;syncPowers();},setScore(score){round.score=score;syncUI();},start,pause,resume,drop,step,spawn,processMerges,engine,refreshPhysics,get ready(){return assetsReady;},get state(){return {mode,dangerProgress,effects:{particles:particles.length,fireworks:fireworks.length,audio:activeAudio.length},powers:{...powers},removing,round:{...round},time,bodies:bodies.map(b=>({id:b.id,tier:b.plugin.tier,x:b.position.x,y:b.position.y,danger:b.plugin.danger})),best};},position(body,x,y){Body.setPosition(body,{x,y});},setAim(x){aim=x;},advance(seconds){for(let i=0;i<seconds*60;i++)step(1/60);},end};
