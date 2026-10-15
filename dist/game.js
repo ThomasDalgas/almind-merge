@@ -1,6 +1,6 @@
 import {earnedPowers,createRewardNotices} from './reward-notices.js?v=gameover-notices-v1';
 import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
-import {findBallEscape} from './ball-collision.js?v=ball-fix-v1';
+import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=gameover-notices-v1';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
 import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=gameover-notices-v1';
@@ -133,16 +133,20 @@ function previewContext(c,w,h){
   const g=c.getContext('2d');g.setTransform(density,0,0,density,0,0);
   g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';return g;
 }
+let nextPreviewKey=null;
 function syncUI(){
   syncPowers();
   $('#score').textContent=numberFormat.format(round.score);
   if(round.score>best){best=round.score;try{localStorage.setItem(bestStorageKey,String(best));}catch{}}
   $('#best').textContent=numberFormat.format(best);$('#next-name').textContent=tiles[round.next].name;$('#next-value').textContent=`${VALUES[round.next]} point`;
+  const previewKey=`${round.next}:${tileRadius(round.next)}:${tileSource(round.next)}:${window.devicePixelRatio}`;
+  if(previewKey!==nextPreviewKey){nextPreviewKey=previewKey;
   const c=$('#next-preview'),g=previewContext(c,160,120);const outline=tileOutline(round.next),xs=outline.map(p=>p.x),ys=outline.map(p=>p.y);
   const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
   const r=Math.min(144/(maxX-minX),108/(maxY-minY));
   drawTile(g,round.next,80-(minX+maxX)*r/2,60-(minY+maxY)*r/2,r);
   c.setAttribute('aria-label',`Næste brik: ${tiles[round.next].name}, ${VALUES[round.next]} point`);
+  }
   document.querySelectorAll('.family-item').forEach((el,i)=>el.classList.toggle('reached',i<=round.maxTier));
 }
 function makeTileBody(tier,x,y){
@@ -151,7 +155,7 @@ function makeTileBody(tier,x,y){
   // Retain that offset so the artwork rotates about exactly the same point.
   const centre=Vertices.centre(outline);
   // Visible area already adds mass; higher tiers also have a little more density.
-  const body=Bodies.fromVertices(x,y,[outline],{restitution:.24,friction:.12,frictionStatic:.2,frictionAir:.008,density:.002*(1+tier*.08),slop:.02},true,.001,0,.001);
+  const body=Bodies.fromVertices(x,y,[outline],{restitution:.28,friction:.10,frictionStatic:.18,frictionAir:.007,density:.002*(1+tier*.08),slop:.02},true,.001,0,.001);
   body.plugin={tile:true,tier,alive:true,age:0,danger:0,artOffset:centre,outline:outline.map(p=>({x:p.x-centre.x,y:p.y-centre.y})),ballRadius:Math.max(...outline.map(p=>Math.hypot(p.x-centre.x,p.y-centre.y)))};
   return body;
 }

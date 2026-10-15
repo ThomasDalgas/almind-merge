@@ -13,11 +13,21 @@ function clearance(point,polygon){
  }
  return inside?-distance:distance;
 }
+const polygonBounds=new WeakMap();
+function boundedClearance(point,polygon,threshold){
+ let bounds=polygonBounds.get(polygon);
+ if(!bounds){bounds={left:Infinity,right:-Infinity,top:Infinity,bottom:-Infinity};for(const p of polygon){bounds.left=Math.min(bounds.left,p.x);bounds.right=Math.max(bounds.right,p.x);bounds.top=Math.min(bounds.top,p.y);bounds.bottom=Math.max(bounds.bottom,p.y);}polygonBounds.set(polygon,bounds);}
+ const dx=Math.max(bounds.left-point.x,0,point.x-bounds.right),dy=Math.max(bounds.top-point.y,0,point.y-bounds.bottom);
+ // A box encloses the whole outline. Outside this distance the detailed edge
+ // walk cannot change the overlap result; nearby/concave shapes use exact checks.
+ if(dx*dx+dy*dy>=threshold*threshold)return threshold;
+ return clearance(point,polygon);
+}
 export function findBallEscape(point,radius,polygons,{left,right,floor}){
- const overlaps=polygons.filter(p=>clearance(point,p)<radius-.75);
+ const overlaps=polygons.filter(p=>boundedClearance(point,p,radius+.15)<radius-.75);
  if(!overlaps.length)return null;
  const margin=radius+.15,candidates=[];
- const free=q=>q.x-margin>=left&&q.x+margin<=right&&q.y+margin<=floor&&polygons.every(p=>clearance(q,p)>=margin-.01);
+ const free=q=>q.x-margin>=left&&q.x+margin<=right&&q.y+margin<=floor&&polygons.every(p=>boundedClearance(q,p,margin)>=margin-.01);
  for(const polygon of overlaps)for(let i=0;i<polygon.length;i++){
   const a=polygon[i],b=polygon[(i+1)%polygon.length],q=nearest(point,a,b),dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy)||1;
   for(const sign of [-1,1])candidates.push({x:q.x+sign*dy/length*margin,y:q.y-sign*dx/length*margin});
