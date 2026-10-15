@@ -4,7 +4,7 @@ import {findBallEscape} from './ball-collision.js?v=ball-fix-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=gameover-notices-v1';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
 import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=gameover-notices-v1';
-import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=svend-bonus-v2';
+import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=svend-bonus-v2';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
 const canvas=$('#game'),ctx=canvas.getContext('2d');
@@ -220,7 +220,7 @@ function dropPlacement(){
  return {candidate,x,blocked};
 }
 function drop(){
- if(removing||mode!=='playing'||document.querySelector('dialog[open]')||time-round.lastDrop<.5)return;
+ if(removing||mode!=='playing'||document.querySelector('dialog[open]')||time-round.lastDrop<DROP_DELAY)return;
  const {candidate,x,blocked}=dropPlacement();
  if(blocked){setStatus('Ingen plads her — sigt et andet sted, eller brug Ryst / Fjern.');return;}
  const tier=dropRound(round,time);if(tier===null)return;
@@ -277,7 +277,7 @@ function render(){
   ctx.beginPath();ctx.moveTo(LEFT,TOP+32);ctx.lineTo(LEFT,FLOOR-15);ctx.quadraticCurveTo(LEFT,FLOOR,LEFT+15,FLOOR);ctx.lineTo(RIGHT-15,FLOOR);ctx.quadraticCurveTo(RIGHT,FLOOR,RIGHT,FLOOR-15);ctx.lineTo(RIGHT,TOP+32);ctx.strokeStyle='#07536e';ctx.lineWidth=8;ctx.stroke();ctx.strokeStyle='#29a8b4';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='#f8d36a';ctx.lineWidth=1;ctx.stroke();
   for(const body of bodies){const d=body.plugin;if(!d.alive)continue;const r=tileRadius(d.tier),o=d.artOffset,a=body.angle;drawTile(ctx,d.tier,body.position.x-o.x*Math.cos(a)+o.y*Math.sin(a),body.position.y-o.x*Math.sin(a)-o.y*Math.cos(a),r,{rotation:a});if(d.danger>.8){ctx.strokeStyle=`rgba(184,78,62,${Math.min(.8,d.danger/TOP_WAIT)})`;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(body.position.x,body.position.y,r+3,-Math.PI/2,-Math.PI/2+Math.PI*2*d.danger/TOP_WAIT);ctx.stroke();}}
   if(mode==='playing'||mode==='paused'){
-    const radius=tileRadius(round.current),{x,blocked,candidate}=dropPlacement();canvas.dataset.dropBlocked=String(blocked);ctx.strokeStyle=blocked?'#c52d3c':'#92a98060';ctx.lineWidth=1;ctx.setLineDash([3,7]);ctx.beginPath();ctx.moveTo(x,SPAWN+radius+7);ctx.lineTo(x,FLOOR-6);ctx.stroke();ctx.setLineDash([]);drawTile(ctx,round.current,x,SPAWN,radius,{alpha:time-round.lastDrop<.5?.55:1});ctx.font='9px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillStyle='#879a78';ctx.fillText(blocked?'× Ingen plads':'↓',x,Math.max(15,SPAWN-radius-10));
+    const radius=tileRadius(round.current),{x,blocked:occupied,candidate}=dropPlacement(),blocked=time-round.lastDrop>=DROP_DELAY&&occupied;canvas.dataset.dropBlocked=String(blocked);ctx.strokeStyle=blocked?'#c52d3c':'#92a98060';ctx.lineWidth=1;ctx.setLineDash([3,7]);ctx.beginPath();ctx.moveTo(x,SPAWN+radius+7);ctx.lineTo(x,FLOOR-6);ctx.stroke();ctx.setLineDash([]);drawTile(ctx,round.current,x,SPAWN,radius,{alpha:time-round.lastDrop<DROP_DELAY?.55:1});ctx.font='9px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillStyle='#879a78';ctx.fillText(blocked?'× Ingen plads':'↓',x,Math.max(15,SPAWN-radius-10));
     if(blocked){
       ctx.beginPath();candidate.plugin.outline.forEach((p,i)=>{const px=candidate.position.x+p.x,py=candidate.position.y+p.y;i?ctx.lineTo(px,py):ctx.moveTo(px,py);});ctx.closePath();
       ctx.fillStyle='#ed263e88';ctx.fill();ctx.strokeStyle='#b8152c';ctx.lineWidth=2;ctx.stroke();
