@@ -4,13 +4,14 @@ export const DROP_DELAY = .5;
 export const TOP_WAIT = 15;
 // -1 means a valid terminal pair clears both bodies without a replacement.
 export const CLEAR_PAIR=-1;
+export const SVEND_BONUS=10000;
 export function mergeTier(a,b){return a===b && Number.isInteger(a) && a>=0 && a<VALUES.length ? (a===VALUES.length-1?CLEAR_PAIR:a+1) : null;}
 export function nextTier(drops,maxTier,random=Math.random){
   if(drops<3)return 0;
   const exclusiveMax=Math.min(Math.max(maxTier,3),5);
   return Math.min(exclusiveMax-1,Math.floor(Math.max(0,random())*exclusiveMax));
 }
-export function createRound(){return {score:0,drops:0,maxTier:0,current:0,next:0,lastDrop:-Infinity};}
+export function createRound(svendBonus=0){return {svendBonus:svendBonus===SVEND_BONUS?SVEND_BONUS:0,score:0,drops:0,maxTier:0,current:0,next:0,lastDrop:-Infinity};}
 export function dropRound(round,time,random=Math.random){
   if(time-round.lastDrop<DROP_DELAY)return null;
   const tier=round.current;
@@ -19,7 +20,8 @@ export function dropRound(round,time,random=Math.random){
   return tier;
 }
 export function mergeRound(round,a,b){
-  const tier=mergeTier(a,b);if(tier===null||tier===CLEAR_PAIR)return tier;
+  const tier=mergeTier(a,b);if(tier===null)return tier;
+  if(tier===CLEAR_PAIR){round.score+=round.svendBonus||0;return tier;}
   round.score+=VALUES[tier];round.maxTier=Math.max(round.maxTier,tier);return tier;
 }
 export function advanceDanger(previous,above,delta){return above?previous+delta:0;}

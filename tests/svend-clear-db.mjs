@@ -15,4 +15,5 @@ assert.equal(await save(events),score);const cleared=[...events,['m',10,stamp]];
 await assert.rejects(save([...cleared,['m',10,stamp]]),/Invalid merge/);
 assert.equal(await save([...cleared,['d',0,stamp+500]]),score+2,'play and autosave continue after both Svend disappear');
 assert.equal((await db.query("select * from public.am_leaderboard('all')")).rows[0].max_tier,10);
-console.log('PASS full legal ledger reaches two Svend, clears once, no invented tier/points, rejects repeat clear, continues scoring');await db.close();
+const bonus=[...events,['b',10,stamp]];assert.equal(await save(bonus),score+10000);await assert.rejects(save([...bonus,['b',10,stamp]]),/Invalid Svend bonus/);await assert.rejects(save([...events,['b',9,stamp]]),/Invalid Svend bonus/);assert.equal(await save([...bonus,['d',0,stamp+500]]),score+10002);
+console.log('PASS bonus validated, malformed/repeated bonus refused; full legal ledger reaches two Svend, clears once, no invented tier/points, rejects repeat clear, continues scoring');await db.close();

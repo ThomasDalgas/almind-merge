@@ -1,9 +1,10 @@
+import {earnedPowers,createRewardNotices} from './reward-notices.js?v=rewards-v1';
 import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=ball-fix-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=live-recovery-v1';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=profile-buttons-v2';
-import {VALUES,CLEAR_PAIR,TOP_WAIT,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=svend-clear-v1';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=rewards-v1';
+import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=svend-bonus-v2';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=gallery-v1';
 const $=s=>document.querySelector(s);
 const canvas=$('#game'),ctx=canvas.getContext('2d');
@@ -29,13 +30,16 @@ let round=createRound(),bodies=[],pending=[],particles=[],floats=[],mode='ready'
 let soundOn=true,audioCtx=null,toastTimeout;
 let assetsReady=false;
 let fireworks=[];
-let dangerProgress=0;
+let dangerProgress=0,availableSvendBonus=0;
 const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
 let powers={shake:1,remove:1},rewardLevel=0,removing=false,shakeUntil=0,shakePulse=0;
 function syncPowers(){
- const level=Math.floor(round.score/6000);
- for(let milestone=rewardLevel+1;milestone<=level;milestone++)powers[milestone%2?'remove':'shake']++;
- rewardLevel=Math.max(rewardLevel,level);
+ const earned=earnedPowers(rewardLevel,round.score);rewardLevel=earned.level;
+ powers.shake+=earned.shake;powers.remove+=earned.remove;
+ if(mode==='playing'&&(earned.shake||earned.remove)){
+  const gifts=[];if(earned.remove)gifts.push(`+${earned.remove} Fjern`);if(earned.shake)gifts.push(`+${earned.shake} Ryst`);
+  rewardNotices.push({kind:'power',text:`🎁 ${gifts.join(' og ')} optjent · ${numberFormat.format(round.score)} point`});
+ }
  for(const kind of ["shake","remove"]){const button=$("#"+kind);button.querySelector("b").textContent=powers[kind];button.disabled=mode!=="playing"||powers[kind]<1||(kind==="shake"&&(time<shakeUntil||!bodies.length));}
  $("#remove").setAttribute("aria-pressed",String(removing));canvas.classList.toggle("removing",removing);
 }
@@ -199,7 +203,7 @@ Events.on(engine,'collisionStart',({pairs})=>{
   for(const pair of pairs){const a=pair.bodyA.parent,b=pair.bodyB.parent;if(a.plugin.tile&&b.plugin.tile&&a.plugin.alive&&b.plugin.alive&&a.plugin.tier===b.plugin.tier&&a.plugin.tier<VALUES.length){a.plugin.alive=b.plugin.alive=false;pending.push([a,b]);}}
 });
 function processMerges(){
-  for(const [a,b] of pending){const x=(a.position.x+b.position.x)/2,y=(a.position.y+b.position.y)/2,tier=mergeRound(round,a.plugin.tier,b.plugin.tier);Composite.remove(engine.world,[a,b]);bodies=bodies.filter(v=>v!==a&&v!==b);if(tier!==null){scoreEvent('m',a.plugin.tier,time);if(tier===CLEAR_PAIR){burst(x,y,VALUES.length-1,true);tileSound(VALUES.length-1);floats.push({x,y,text:'Mere plads!',life:1.2});setStatus('To Svend — mere plads til familien!');continue;}const n=spawn(tier,x,y);Body.setVelocity(n,{x:(a.velocity.x+b.velocity.x)*.18,y:Math.min(0,(a.velocity.y+b.velocity.y)*.18)});burst(x,y,tier,true);scoreFloat(x,y,VALUES[tier]);tileSound(tier);}}
+  for(const [a,b] of pending){const x=(a.position.x+b.position.x)/2,y=(a.position.y+b.position.y)/2,tier=mergeRound(round,a.plugin.tier,b.plugin.tier);Composite.remove(engine.world,[a,b]);bodies=bodies.filter(v=>v!==a&&v!==b);if(tier!==null){scoreEvent(tier===CLEAR_PAIR&&round.svendBonus?'b':'m',a.plugin.tier,time);if(tier===CLEAR_PAIR){burst(x,y,VALUES.length-1,true);tileSound(VALUES.length-1);floats.push({x,y,text:round.svendBonus?`+${numberFormat.format(round.svendBonus)}!`:'Mere plads!',life:1.8});if(round.svendBonus)rewardNotices.push({kind:'svend',text:`🎆 To Svend! +${numberFormat.format(round.svendBonus)} bonuspoint`});setStatus('To Svend — mere plads til familien!');continue;}const n=spawn(tier,x,y);Body.setVelocity(n,{x:(a.velocity.x+b.velocity.x)*.18,y:Math.min(0,(a.velocity.y+b.velocity.y)*.18)});burst(x,y,tier,true);scoreFloat(x,y,VALUES[tier]);tileSound(tier);}}
   if(pending.length)syncUI();pending=[];
 }
 function drop(){if(removing||mode!=='playing'||document.querySelector('dialog[open]'))return;const tier=dropRound(round,time);if(tier===null)return;scoreEvent('d',tier,time);const r=tileRadius(tier),x=Math.max(LEFT+r+1,Math.min(RIGHT-r-1,aim));spawn(tier,x,SPAWN);scoreFloat(x,SPAWN+25,VALUES[tier]);dropSound();syncUI();setStatus('Find en makker. Skab noget større.');}
@@ -211,7 +215,7 @@ let savedPageY=0;
 function lockPlayScreen(lock){
   if(lock&&!document.body.classList.contains('playing'))savedPageY=window.scrollY;
   document.body.classList.toggle('playing',lock);
-  if(!lock){window.scrollTo(0,savedPageY);liveNotices.clear();}
+  if(!lock){window.scrollTo(0,savedPageY);liveNotices.clear();rewardNotices.clear();}
 }
 function start(){
   if(!assetsReady)return;
@@ -219,7 +223,7 @@ function start(){
   scoreRoundStart();
   ensureAudio();if(audioCtx){recordedBuffer('assets/game-over-voice.m4a').catch(()=>{});recordedBuffer('assets/danger-riser.m4a').catch(()=>{});}
   document.body.classList.add('started');fireworks=[];dangerProgress=0;$('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');
-  stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound();powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
+  rewardNotices.clear();stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound(availableSvendBonus);powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
 }
 function pause(){if(mode!=='playing')return;mode='paused';cancelRemove();lockPlayScreen(false);flushScore();refreshLeaderboard();keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');livePlayers.changed();}
 function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;mode='playing';syncPowers();lockPlayScreen(true);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();}
@@ -286,16 +290,22 @@ function buildFamily(){
   $('#family').replaceChildren();tiles.forEach((t,i)=>{const el=document.createElement('button');el.type='button';el.className='family-item';el.setAttribute('aria-label',`Se ${t.name} i stor størrelse`);el.onclick=()=>{stopSounds();portraitTier=i;$('#portrait-play').setAttribute('aria-label',`Afspil lyden til ${t.name}`);const img=$('#portrait-image');img.src=tileSource(i);img.alt=t.name;$('#portrait-name').textContent=t.name;$('#portrait-points').textContent=`${numberFormat.format(VALUES[i])} point`;openDialog('portrait');};const c=document.createElement('canvas');c.width=100;c.height=95;c.setAttribute('aria-label',t.name);drawTile(previewContext(c,100,95),i,50,47,tileRadius(i,21+i*1.3),{number:false});const value=document.createElement('b');value.textContent=String(VALUES[i]);const name=document.createElement('span');name.textContent=t.name;el.append(c,value,name);$('#family').append(el);});syncUI();
 }
 let departed=false;
+const rewardNotices=createRewardNotices({
+ canShow:()=>mode==='playing'&&!document.hidden,
+ show:notice=>{const el=$('#reward-announcement');el.textContent=notice.text;el.classList.add('visible');document.body.classList.add('reward-notice');},
+ hide:()=>{$('#reward-announcement').classList.remove('visible');document.body.classList.remove('reward-notice');},
+ sound:()=>{effectTone(659,659,0,.13,.07,'triangle');effectTone(830,830,.1,.14,.065,'triangle');effectTone(1047,1319,.2,.28,.07,'sine');}
+});
 const liveNotices=createLiveNotices({canNotify:()=>mode==='playing'&&!document.hidden,show:notice=>{const el=$('#live-announcement');el.textContent=notice.text;el.dataset.kind=notice.kind;el.classList.add('visible');},hide:()=>$('#live-announcement').classList.remove('visible')});
 const livePlayers=createLivePlayers({api:scoreApi,getTicket:liveRoundTicket,getNickname:liveNickname,getState:()=>({mode,score:round.score,maxTier:round.maxTier}),render:(snapshot,status)=>{renderLivePlayers(snapshot,status);liveNotices.observe(snapshot,status);},visible:()=>!document.hidden&&!departed});
 window.addEventListener('pagehide',()=>{departed=true;livePlayers.changed();});window.addEventListener('pageshow',()=>{departed=false;if(mode!=='ready')livePlayers.changed();});
 window.addEventListener('online',()=>{if(mode!=='ready')livePlayers.changed();});window.addEventListener('offline',()=>{if(mode!=='ready')livePlayers.changed();});
-document.addEventListener('visibilitychange',()=>{if(mode!=='ready')livePlayers.changed();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)rewardNotices.clear();if(mode!=='ready')livePlayers.changed();});
 const mobileDisplay=initMobileDisplay({isPlaying:()=>mode==='playing',pause,cancelDrag:()=>{dragging=false;}});
 initLeaderboard();updateSoundButton();buildFamily();requestAnimationFrame(frame);
 $('#play').disabled=true;
 (async()=>{
-  try{await preloadImages();assetsReady=true;$('#play').disabled=false;buildFamily();}
+  try{await Promise.all([preloadImages(),scoreApi.gameRules().then(r=>{availableSvendBonus=r?.svend_bonus===SVEND_BONUS?SVEND_BONUS:0;}).catch(()=>{})]);assetsReady=true;$('#play').disabled=false;buildFamily();}
   catch(err){toast(err.message||'Figurerne kunne ikke indlæses. Genindlæs siden.');}
 })();
 // Opt-in test interface: never present on the ordinary page.

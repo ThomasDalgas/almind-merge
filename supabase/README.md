@@ -102,3 +102,13 @@ Testet lokalt: `player-codes-db.mjs`, `svend-clear-db.mjs`, `svend-clear-browser
 - Officielle Free-grænser kontrolleret: 500 MB database pr. projekt, 5 GB uncached egress pr. faktureringscyklus plus separat 5 GB cached egress. Egress er fælles på organisationsniveau. Se https://supabase.com/pricing og https://supabase.com/docs/guides/platform/manage-your-usage/egress . Faktisk forbrug kræver dashboardets Usage-tal.
 
 Sammenlægningen er annulleret efter brugerens ændrede ønske. `merge-thomas-profiles.sql` stopper nu uden ændringer. Brug i stedet `rename-thomasmac.sql` (forberedt og testet, endnu ikke aktiveret): skjul den lave Thomas-profil på 18.662, og omdøb ThomasMac til Thomas. ThomasMacs identitet, kode, enheder og højeste score bevares; ingen runder eller enheder flyttes mellem profiler. Sidst observerede ThomasMac-rekord var 36.704. Test: `tests/rename-thomas-db.mjs`.
+
+## Belønningsbeskeder og Svend-bonus (15. oktober 2026)
+
+Klienten viser en 3-sekunders toast og en kort lyd ved optjente Fjern/Ryst. Flere belønninger fra samme scorehop samles; startbeholdningen udløser ingen besked. Toasten bruger det eksisterende område over banen, prioriteres over livebeskeder og ryddes ved pause, genstart og skjult fane. Lyd følger mute og spiller parallelt med andre effekter.
+
+Migration `202610150008_svend_bonus.sql` tilføjer valideret bonus på **10.000 point** for to Svend. Den nye journalhændelse `b` kræver tier 10 og mindst to Svend i den serverberegnede beholdning. Begge forbruges, ingen ny brik skabes, og bonuspoint tæller mod næste Fjern/Ryst. Gamle `m`-hændelser med to Svend beholder nul bonus, så eksisterende klienter og offline-journaler fortsat valideres korrekt.
+
+`am_game_rules()` annoncerer bonusunderstøttelse. Klienten aktiverer kun bonus i nye runder, hvis databasen har bekræftet den. Ved manglende migration/forbindelse bruges de gamle regler. Genindlæs efter SQL-installationen. Ingen gamle highscores genberegnes. Migrationen er forberedt og testet; afventer ejerens aktivering i Supabase.
+
+Tests: `reward-notices.test.mjs`, `rules.test.mjs`, `rewards-browser.mjs`, `svend-clear-browser.mjs` og `svend-clear-db.mjs` dækker grænser, dubletter, kø/varighed, mute, mobil-layout, ny bonus samt gamle runder og afvisning af gentagen/forkert bonus.
