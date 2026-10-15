@@ -213,11 +213,15 @@ function processMerges(){
 }
 let dropPreview=null;
 function dropPlacement(){
- const tier=round.current,r=tileRadius(tier),x=Math.max(LEFT+r+1,Math.min(RIGHT-r-1,aim));
- // Reuse the preview shape: no polygon decomposition or new physics IDs each frame.
- if(!dropPreview||dropPreview.plugin.tier!==tier)dropPreview=makeTileBody(tier,x,SPAWN);
- Body.setPosition(dropPreview,{x,y:SPAWN});
- const candidate=dropPreview,bounds=candidate.bounds;
+ const tier=round.current;
+ // Artwork is centred on the aim, while Matter positions its centre of mass.
+ if(!dropPreview||dropPreview.plugin.tier!==tier)dropPreview=makeTileBody(tier,aim,SPAWN);
+ const candidate=dropPreview,offset=candidate.plugin.artOffset;
+ Body.setPosition(candidate,{x:aim+offset.x,y:SPAWN+offset.y});
+ // Clamp the actual silhouette, including asymmetric arms, rather than a radius.
+ const correction=candidate.bounds.min.x<LEFT+1?LEFT+1-candidate.bounds.min.x:candidate.bounds.max.x>RIGHT-1?RIGHT-1-candidate.bounds.max.x:0;
+ if(correction)Body.setPosition(candidate,{x:candidate.position.x+correction,y:candidate.position.y});
+ const x=candidate.position.x-offset.x,bounds=candidate.bounds;
  const parts=candidate.parts.length>1?candidate.parts.slice(1):[candidate];
  const occupied=bodies.filter(b=>b.plugin.alive);
  const blocked=bounds.min.x<LEFT||bounds.max.x>RIGHT||bounds.min.y<0||bounds.max.y>FLOOR||parts.some(part=>Matter.Query.collides(part,occupied).length>0);
@@ -255,7 +259,7 @@ function end(){if(mode==='over')return;mode='over';mobileDisplay.leave();firewor
 function step(dt){
   if(mode!=='playing')return;time+=dt;if(shakeUntil&&time<shakeUntil){const pulse=Math.floor((time-(shakeUntil-.65))/.16);if(pulse>shakePulse){shakePulse=pulse;shakeKick(pulse%2?-1:1);}}if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
   if(keys.has('ArrowLeft'))aim-=260*dt;if(keys.has('ArrowRight'))aim+=260*dt;
-  aim=Math.max(LEFT+tileRadius(round.current)+1,Math.min(RIGHT-tileRadius(round.current)-1,aim));
+  aim=Math.max(LEFT,Math.min(RIGHT,aim));
   // Four small 240 Hz solves keep fast, heavy tiles from crossing thin silhouette parts.
   for(let sub=0;sub<4;sub++){Engine.update(engine,dt*250);processMerges();freeEmbeddedBalls();}
   let worst=0;
@@ -351,4 +355,4 @@ $('#play').disabled=true;
 })();
 $('#load-retry').onclick=()=>location.reload();
 // Opt-in test interface: never present on the ordinary page.
-if(new URLSearchParams(location.search).get('test')==='1')window.__mergeTest={shake,removeAt,toggleRemove(){removing=!removing;syncPowers();},setScore(score){round.score=score;syncUI();},start,pause,resume,drop,step,spawn,processMerges,engine,refreshPhysics,get ready(){return assetsReady;},get state(){return {mode,dangerProgress,effects:{particles:particles.length,fireworks:fireworks.length,audio:activeAudio.length},powers:{...powers},removing,round:{...round},time,bodies:bodies.map(b=>({id:b.id,tier:b.plugin.tier,x:b.position.x,y:b.position.y,danger:b.plugin.danger})),best};},position(body,x,y){Body.setPosition(body,{x,y});},setAim(x){aim=x;},advance(seconds){for(let i=0;i<seconds*60;i++)step(1/60);},end};
+if(new URLSearchParams(location.search).get('test')==='1')window.__mergeTest={shake,removeAt,toggleRemove(){removing=!removing;syncPowers();},setScore(score){round.score=score;syncUI();},start,pause,resume,drop,step,spawn,processMerges,engine,refreshPhysics,get ready(){return assetsReady;},get state(){return {mode,dangerProgress,effects:{particles:particles.length,fireworks:fireworks.length,audio:activeAudio.length},powers:{...powers},removing,round:{...round},time,bodies:bodies.map(b=>({id:b.id,tier:b.plugin.tier,x:b.position.x,y:b.position.y,danger:b.plugin.danger})),best};},position(body,x,y){Body.setPosition(body,{x,y});},setAim(x){aim=x;},setDropTier(tier){round.current=tier;},advance(seconds){for(let i=0;i<seconds*60;i++)step(1/60);},end};
