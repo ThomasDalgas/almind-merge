@@ -48,3 +48,8 @@ Aktivt spil bruger den tilgængelige dynamiske viewport med safe-area-plads. Pin
 Safari: Del → Føj til hjemmeskærm. Manifest og Apple-metadata åbner spillet som standalone; Apple-ikonet er 180×180 og manifestikonet 512×512. Begge bruger det eksisterende familielogo på en uigennemsigtig baggrund. Et tidligere gemt gråt ikon skal typisk fjernes og tilføjes igen. Ingen offline/service-worker-cache er tilføjet.
 
 `GAME_TEST_URL=http://127.0.0.1:4188 PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/mobile-display-browser.mjs` tester seks touch-viewports, drag, tofinger-input, landscape-pause, tilbagevenden, menuscroll og desktop. Native fullscreen/orientation-kald testes med understøttet/afvist API-simulering; de erstatter ikke en fysisk Safari-enhedstest. Testen blokerer online Supabase-kald.
+
+
+## Almind Artilleri
+
+Det nye HTML5-artillerispil findes på https://thomasdalgas.github.io/almind-merge/artilleri/ . Spilfilerne ligger i `dist/artilleri/`, og den fælles profil bruges via Supabase. Onlinekampe kræver migration `supabase/migrations/202610160001_artillery.sql` (aktiveret 16. oktober 2026).

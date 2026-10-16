@@ -1,0 +1,4 @@
+import {test} from 'node:test';import {strict as assert} from 'node:assert';import {newGame,trace,fire,bestShot} from '../dist/artilleri/rules.js';
+test('deterministic terrain and valid turns',()=>{const a=newGame({seed:123}),b=newGame({seed:123});assert.deepEqual(a.ground,b.ground);assert.equal(a.turn,0);fire(a,{angle:45,power:70});assert.equal(a.turn,1);assert.equal(a.players[0].cash,500);});
+test('range and cash validation',()=>{const g=newGame({seed:9});assert.throws(()=>fire(g,{angle:99,power:20}));g.players[0].cash=100;assert.throws(()=>fire(g,{angle:40,power:50,weapon:'cluster'}));assert.equal(g.shots,0);});
+test('computer picks a legal shot',()=>{const g=newGame({seed:10});const shot=bestShot(g,1);assert.ok(shot.angle>=5&&shot.angle<=85);assert.ok(shot.power>=10&&shot.power<=100);assert.ok(Number.isFinite(trace(g,1,shot.angle,shot.power).x));});
