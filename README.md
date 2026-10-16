@@ -52,4 +52,4 @@ Safari: Del → Føj til hjemmeskærm. Manifest og Apple-metadata åbner spillet
 
 ## Almind Artilleri
 
-Det nye HTML5-artillerispil findes på https://thomasdalgas.github.io/almind-merge/artilleri/ . Spilfilerne ligger i `dist/artilleri/`, og den fælles profil bruges via Supabase. Onlinekampe kræver migration `supabase/migrations/202610160001_artillery.sql` (aktiveret 16. oktober 2026).
+Det nye HTML5-artillerispil findes på https://almindgames.funken.dk/artilleri/ . Det har fotorealistiske tankaktiver og deterministisk tyngdekraft, kratere samt tanks der falder, glider og roterer. Spilfilerne ligger i `dist/artilleri/`, og den fælles profil bruges via Supabase. Onlinekampe kræver migration `supabase/migrations/202610160001_artillery.sql` (aktiveret 16. oktober 2026).
