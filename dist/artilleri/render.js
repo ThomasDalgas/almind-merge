@@ -1,4 +1,4 @@
-import {W,H,trace} from './rules.js';
+import {W,H,trace} from './rules.js?v=physics-2';
 const tankPhoto=new Image();tankPhoto.src=new URL('./assets/tank-photoreal.png',import.meta.url).href;tankPhoto.onload=()=>window.dispatchEvent(new Event('artillery-assets-loaded'));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function line(c,points){c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.stroke();}

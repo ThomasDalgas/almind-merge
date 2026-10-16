@@ -1,5 +1,5 @@
-import {newGame,fire,bestShot,weapons} from './rules.js';
-import {render} from './render.js';
+import {newGame,fire,bestShot,weapons} from './rules.js?v=physics-2';
+import {render} from './render.js?v=physics-2';
 import * as online from './online.js';
 const $=s=>document.querySelector(s),canvas=$('#field'),ctx=canvas.getContext('2d');
 let game=null,kind=null,room=null,animation=null,poll=null,busy=false,lastVersion=-1;
