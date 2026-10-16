@@ -1,7 +1,7 @@
 // Same progressive fullscreen/orientation pattern as Almind Merge, adapted to landscape.
 export function initDisplay({hasGame}){const touch=matchMedia('(any-pointer: coarse)'),portrait=matchMedia('(orientation: portrait)'),root=document.documentElement,overlay=document.querySelector('#rotate-screen'),full=document.querySelector('#fullscreen'),resume=document.querySelector('#resume');let session=false,requesting=false,ownedLock=false;
  const fullscreen=()=>document.fullscreenElement||document.webkitFullscreenElement;
- function sync(){document.body.classList.toggle('playing',session);document.body.classList.toggle('touch-device',touch.matches);overlay.hidden=!(session&&touch.matches&&portrait.matches);full.hidden=!touch.matches||!(root.requestFullscreen||root.webkitRequestFullscreen);full.textContent=fullscreen()?'⛶':'⛶ Fuldskærm';resume.hidden=session||!hasGame();}
+ function sync(){document.body.classList.toggle('playing',session);document.body.classList.toggle('touch-device',touch.matches);overlay.hidden=true;full.hidden=!touch.matches||!(root.requestFullscreen||root.webkitRequestFullscreen);full.textContent=fullscreen()?'⛶':'⛶ Fuldskærm';resume.hidden=session||!hasGame();}
  async function expand(){if(!touch.matches||requesting)return;requesting=true;try{if(!fullscreen()){const request=root.requestFullscreen||root.webkitRequestFullscreen;if(request)await request.call(root);}if(session&&screen.orientation?.lock){await screen.orientation.lock('landscape');ownedLock=true;}}catch{/* Browser may decline; the game remains usable in landscape. */}finally{requesting=false;sync();}}
  function enter(){session=true;sync();void expand();}
  function leave(){session=false;if(ownedLock){try{screen.orientation.unlock?.();}catch{}ownedLock=false;}sync();}

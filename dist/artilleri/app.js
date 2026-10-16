@@ -1,7 +1,7 @@
-import {newGame,fire,bestShot,weapons} from './rules.js?v=nature-4';
-import {render} from './render.js?v=nature-4';
-import {swipeAim,guidanceCharges} from './aim.js?v=nature-4';
-import {initDisplay} from './display.js?v=nature-4';
+import {newGame,fire,bestShot,weapons} from './rules.js?v=layout-5';
+import {render} from './render.js?v=layout-5';
+import {swipeAim,guidanceCharges} from './aim.js?v=layout-5';
+import {initDisplay} from './display.js?v=layout-5';
 import * as online from './online.js';
 const $=s=>document.querySelector(s),canvas=$('#field'),ctx=canvas.getContext('2d');
 let game=null,kind=null,room=null,animation=null,poll=null,busy=false,lastVersion=-1,guidanceSpent=[0,0],guideUntil=0,guideTimer=null;

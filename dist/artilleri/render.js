@@ -1,4 +1,4 @@
-import {W,H,trace,terrain,materialAt} from './rules.js?v=landscape-3';
+import {W,H,trace,terrain,materialAt} from './rules.js?v=layout-5';
 const tankPhoto=new Image();tankPhoto.src=new URL('./assets/tank-photoreal.png',import.meta.url).href;tankPhoto.onload=()=>window.dispatchEvent(new Event('artillery-assets-loaded'));const pinePhoto=new Image();pinePhoto.src=new URL('./assets/pine-photoreal.png',import.meta.url).href;pinePhoto.onload=()=>window.dispatchEvent(new Event('artillery-assets-loaded'));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function line(c,points){c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.stroke();}

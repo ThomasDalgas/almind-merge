@@ -24,3 +24,36 @@ body:not(.playing) .game-actions{display:none}
 #power::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#f9f5e6;border:3px solid #243039;box-shadow:0 2px 9px #0008}
 #power::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:#f9f5e6;border:3px solid #243039;box-shadow:0 2px 9px #0008}
 #power-value{transition:color .15s ease}
+
+/* Compact lobby and controls inside the battlefield */
+main{padding:14px clamp(12px,2vw,26px)}
+header{margin-bottom:12px;min-height:48px}
+header .brand{display:flex;align-items:baseline;gap:15px;flex-wrap:wrap}
+h1{font-size:clamp(31px,3.4vw,47px);line-height:1;margin:0;letter-spacing:-.065em}
+header p{font-size:12px}
+.badge{padding:6px 10px}
+.layout{gap:14px;grid-template-columns:minmax(0,1fr) 280px}
+.card{padding:15px;margin-bottom:12px}
+.card h2{font-size:19px;margin:5px 0 12px}
+.card p{line-height:1.4}
+.scoreboard{min-height:54px;padding:8px 12px}
+.field-stage{position:relative;width:100%;aspect-ratio:16/9;margin:auto;overflow:hidden;background:#142b40}
+.field-stage canvas{width:100%;height:100%;object-fit:contain}
+.aim-overlay{position:absolute;left:2%;right:2%;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:13px 16px 9px;border-radius:13px 13px 0 0;background:linear-gradient(0deg,#07141bec,#07141bd4 70%,#07141b00);z-index:2}
+.aim-overlay label{display:block;min-width:0;font-size:12px;color:#e4eeea;font-weight:700;text-shadow:0 1px 3px #000}
+.aim-overlay strong{float:right;font-size:15px;color:#fff}
+.aim-overlay input{display:block;width:100%;margin:8px 0 0;accent-color:#f6b777;touch-action:auto}
+.controls{grid-template-columns:minmax(130px,1fr) auto auto;padding:9px 12px;gap:9px}
+.controls label{max-width:360px}
+.controls select{margin-top:3px}
+.status{min-height:30px;padding:6px 12px}
+body.playing .game{grid-template-rows:auto minmax(0,1fr) auto auto}
+body.playing .field-stage{width:min(100%,calc((100dvh - 125px)*16/9));height:auto;max-height:100%;aspect-ratio:16/9}
+body.playing .field-stage canvas{width:100%;height:100%;max-height:none}
+body.playing .aim-overlay{padding:10px 14px 7px;gap:15px}
+body.playing .controls{grid-template-columns:minmax(130px,1fr) auto auto;padding:6px 10px}
+body.playing .controls label:nth-child(3),body.playing .controls button{grid-column:auto}
+body.playing .controls input[type=range]{display:block}
+body.playing .aim-overlay input[type=range]{display:block;margin:7px 0 0}
+@media(max-width:950px){.layout{grid-template-columns:1fr}aside{grid-row:1;display:grid;grid-template-columns:1fr 1fr;gap:10px}.game{grid-row:2}.rules{grid-column:1/-1}.card{margin:0}}
+@media(max-width:650px){header .brand{gap:8px}header .eyebrow,header p{display:none}.badge{font-size:10px}aside{grid-template-columns:1fr}.game{grid-row:2}.rules{grid-column:auto}.aim-overlay{gap:8px;padding:8px 9px 5px}.aim-overlay label{font-size:10px}.aim-overlay strong{font-size:11px}.aim-overlay input{margin:3px 0 0}.controls{grid-template-columns:minmax(100px,1fr) auto auto;padding:6px;gap:5px}.controls label:nth-child(3),.controls button{grid-column:auto}body.playing .aim-overlay{padding:6px 9px 4px;gap:8px}body.playing .field-stage{width:min(100%,calc((100dvh - 116px)*16/9))}}
