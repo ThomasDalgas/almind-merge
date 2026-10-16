@@ -57,3 +57,7 @@ body.playing .controls input[type=range]{display:block}
 body.playing .aim-overlay input[type=range]{display:block;margin:7px 0 0}
 @media(max-width:950px){.layout{grid-template-columns:1fr}aside{grid-row:1;display:grid;grid-template-columns:1fr 1fr;gap:10px}.game{grid-row:2}.rules{grid-column:1/-1}.card{margin:0}}
 @media(max-width:650px){header .brand{gap:8px}header .eyebrow,header p{display:none}.badge{font-size:10px}aside{grid-template-columns:1fr}.game{grid-row:2}.rules{grid-column:auto}.aim-overlay{gap:8px;padding:8px 9px 5px}.aim-overlay label{font-size:10px}.aim-overlay strong{font-size:11px}.aim-overlay input{margin:3px 0 0}.controls{grid-template-columns:minmax(100px,1fr) auto auto;padding:6px;gap:5px}.controls label:nth-child(3),.controls button{grid-column:auto}body.playing .aim-overlay{padding:6px 9px 4px;gap:8px}body.playing .field-stage{width:min(100%,calc((100dvh - 116px)*16/9))}}
+
+/* Inverted angle scale: higher elevation is on the left. */
+#angle{transform:scaleX(-1)}
+@media(orientation:portrait){body.playing .game{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start}body.playing .field-stage{width:100%;max-height:none;flex:none}body.playing .status,body.playing .controls{width:100%}}

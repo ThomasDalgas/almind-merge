@@ -1,9 +1,9 @@
-import {newGame,fire,bestShot,weapons} from './rules.js?v=layout-5';
-import {render} from './render.js?v=layout-5';
-import {swipeAim,guidanceCharges} from './aim.js?v=layout-5';
-import {initDisplay} from './display.js?v=layout-5';
+import {W,H,newGame,fire,bestShot,weapons} from './rules.js?v=realism-6';
+import {render} from './render.js?v=realism-6';
+import {swipeAim,guidanceCharges} from './aim.js?v=realism-6';
+import {initDisplay} from './display.js?v=realism-6';
 import * as online from './online.js';
-const $=s=>document.querySelector(s),canvas=$('#field'),ctx=canvas.getContext('2d');
+const $=s=>document.querySelector(s),canvas=$('#field'),ctx=canvas.getContext('2d',{alpha:false});const renderScale=Math.min(2,Math.max(1.5,window.devicePixelRatio||1));canvas.width=Math.round(W*renderScale);canvas.height=Math.round(H*renderScale);ctx.setTransform(renderScale,0,0,renderScale,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
 let game=null,kind=null,room=null,animation=null,poll=null,busy=false,lastVersion=-1,guidanceSpent=[0,0],guideUntil=0,guideTimer=null;
 const display=initDisplay({hasGame:()=>!!game});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
