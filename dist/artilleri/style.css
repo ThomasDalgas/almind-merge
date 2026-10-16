@@ -18,3 +18,9 @@ body.playing .controls select{font-size:11px;min-height:32px}
 @media(max-width:760px){body.playing .scoreboard .player small{font-size:9px}body.playing .scoreboard .round{font-size:10px}body.playing .game-actions{flex-direction:column}body.playing .game-actions button{min-height:24px;font-size:9px;padding:1px 4px}body.playing .controls{grid-template-columns:1fr 1fr auto auto}body.playing .controls label:nth-child(3){grid-column:auto}body.playing .controls button{grid-column:auto}body.playing .controls input[type=range]{display:none}body.playing .controls strong{float:none;display:block;font-size:11px}body.playing canvas{width:min(100%,calc((100dvh - 132px)*16/9))}}
 body:not(.playing) .game-actions{display:none}
 @media(any-pointer:coarse){body.playing .controls button{min-height:40px}}
+
+/* Aim feedback */
+#power{appearance:none;-webkit-appearance:none;height:13px;border-radius:999px;background:linear-gradient(90deg,#36bd76 0%,#a9d064 38%,#f3cf59 62%,#ec8653 82%,#d44845 100%);box-shadow:inset 0 2px 4px #18212a88,0 0 0 1px #ffffff30;cursor:pointer}
+#power::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#f9f5e6;border:3px solid #243039;box-shadow:0 2px 9px #0008}
+#power::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:#f9f5e6;border:3px solid #243039;box-shadow:0 2px 9px #0008}
+#power-value{transition:color .15s ease}
