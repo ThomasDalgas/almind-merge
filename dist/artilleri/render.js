@@ -1,6 +1,6 @@
-import {clusterFlight} from './combat-cues.js?v=duel-17';
-import {drawTank,drawBlast} from './tank-visuals.js?v=duel-17';
-import {W,H,trace,terrain,materialAt} from './rules.js?v=duel-17';
+import {clusterFlight} from './combat-cues.js?v=lobby-18';
+import {drawTank,drawBlast} from './tank-visuals.js?v=lobby-18';
+import {W,H,trace,terrain,materialAt} from './rules.js?v=lobby-18';
 const assets={};for(const [key,name] of Object.entries({hull:'tank-hull-v2.webp',cannon:'tank-cannon-v2.webp',cloud:'cloud-bank-v2.webp',backdrop:'mountain-backdrop-v2.webp',pine:'pine-photoreal.png',soil:'soil-texture-v2.webp',rock:'rock-texture-v2.webp'})){const img=new Image();img.src=new URL('./assets/'+name,import.meta.url).href;img.onload=()=>window.dispatchEvent(new Event('artillery-assets-loaded'));assets[key]=img;}
 const ready=name=>assets[name].complete&&assets[name].naturalWidth>0;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));

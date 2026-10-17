@@ -10,7 +10,7 @@ function harness(){
  function el(){return {value:'',disabled:false,hidden:false,textContent:'',innerHTML:'',classList:{toggle(){},remove(){}},style:{},setAttribute(){},append(){},addEventListener(){},getContext(){return {setTransform(){}}},click(){this.onclick?.();}};}
  const get=s=>{if(!elements.has(s))elements.set(s,el());return elements.get(s);};
  get('#angle').value='41';get('#power').value='100';get('#weapon').value='shell';get('#mode').value='standard';
- const context=vm.createContext({...rules,shotFrame,createCombatAudio:()=>({enabled:true,unlock(){},begin(){},update(){},stop(){},finish(){},suspend(){},toggle(){}}),initWeaponPicker:()=>({sync(){},close(){}}),render(){},swipeAim(){},guidanceCharges(){return 0;},online:{},initDisplay:()=>({sync(){},enter(){},isActive:()=>true}),document:{querySelector:get,createElement:el,body:el(),hidden:false,addEventListener(type,fn){listeners.set(type,fn);},activeElement:{tagName:'BODY'}},window:{devicePixelRatio:1,addEventListener(){}},performance:{now:()=>now},matchMedia:()=>({matches:false}),requestAnimationFrame:f=>{frames.set(++id,f);return id;},cancelAnimationFrame:i=>frames.delete(i),setTimeout:(f,ms)=>{timers.set(++id,{f,at:now+ms});return id;},clearTimeout:i=>timers.delete(i),setInterval:()=>0,clearInterval(){},localStorage:{getItem(){return null;}},console});
+ const context=vm.createContext({...rules,shotFrame,initOnlineLobby:()=>({}),createCombatAudio:()=>({enabled:true,unlock(){},begin(){},update(){},stop(){},finish(){},suspend(){},toggle(){}}),initWeaponPicker:()=>({sync(){},close(){}}),render(){},swipeAim(){},guidanceCharges(){return 0;},online:{},initDisplay:()=>({sync(){},enter(){},isActive:()=>true}),document:{querySelector:get,createElement:el,body:el(),hidden:false,addEventListener(type,fn){listeners.set(type,fn);},activeElement:{tagName:'BODY'}},window:{devicePixelRatio:1,addEventListener(){}},performance:{now:()=>now},matchMedia:()=>({matches:false}),requestAnimationFrame:f=>{frames.set(++id,f);return id;},cancelAnimationFrame:i=>frames.delete(i),setTimeout:(f,ms)=>{timers.set(++id,{f,at:now+ms});return id;},clearTimeout:i=>timers.delete(i),setInterval:()=>0,clearInterval(){},localStorage:{getItem(){return null;}},console});
  vm.runInContext(source,context);
  const run=code=>vm.runInContext(code,context);
  const tick=ms=>{now=ms;const callbacks=[...frames.values()];frames.clear();callbacks.forEach(f=>f(now));for(const [key,t] of [...timers])if(t.at<=now){timers.delete(key);t.f();}};
@@ -51,6 +51,6 @@ test('two clients replay identical shots and only the current seat can shoot',as
 });
 test('waiting lobby retains code, blocks shooting and disappears when guest joins',async()=>{
  const h=harness(),waiting=JSON.stringify(roomState(0,0,false));await h.run(`sync(${waiting})`);await h.run(`sync(${waiting})`);
- assert.equal(h.get('#fire').disabled,true);assert.equal(h.run('lobby.hidden'),false);assert.match(h.run('lobby.innerHTML'),/AB12CD34/);assert.match(h.get('#status').textContent,/Venter/);
+ assert.equal(h.get('#fire').disabled,true);assert.equal(h.run('lobby.hidden'),false);assert.match(h.run('lobby.innerHTML'),/Venter på modstander/);assert.match(h.get('#status').textContent,/Venter/);
  await h.run(`sync(${JSON.stringify(roomState())})`);assert.equal(h.run('lobby.hidden'),true);assert.equal(h.get('#fire').disabled,false);
 });

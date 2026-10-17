@@ -1,11 +1,12 @@
-import {createCombatAudio} from './audio.js?v=duel-17';
-import {initWeaponPicker} from './weapon-picker.js?v=duel-17';
-import {shotFrame} from './presentation.js?v=duel-17';
-import {W,H,newGame,fire,bestShot,weapons} from './rules.js?v=duel-17';
-import {render} from './render.js?v=duel-17';
-import {swipeAim,guidanceCharges} from './aim.js?v=duel-17';
-import {initDisplay} from './display.js?v=duel-17';
-import * as online from './online.js?v=duel-17';
+import {initOnlineLobby} from './lobby.js?v=lobby-18';
+import {createCombatAudio} from './audio.js?v=lobby-18';
+import {initWeaponPicker} from './weapon-picker.js?v=lobby-18';
+import {shotFrame} from './presentation.js?v=lobby-18';
+import {W,H,newGame,fire,bestShot,weapons} from './rules.js?v=lobby-18';
+import {render} from './render.js?v=lobby-18';
+import {swipeAim,guidanceCharges} from './aim.js?v=lobby-18';
+import {initDisplay} from './display.js?v=lobby-18';
+import * as online from './online.js?v=lobby-18';
 const $=s=>document.querySelector(s),canvas=$('#field'),ctx=canvas.getContext('2d',{alpha:false});const renderScale=Math.min(2,Math.max(1.5,window.devicePixelRatio||1));canvas.width=Math.round(W*renderScale);canvas.height=Math.round(H*renderScale);ctx.setTransform(renderScale,0,0,renderScale,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
 let game=null,kind=null,room=null,animation=null,poll=null,busy=false,lastVersion=-1,guidanceSpent=[0,0],guideUntil=0,guideTimer=null,bannerTimer=null,aiTimer=null,frameId=null,epoch=0,queuedState=null,polling=false;
 const display=initDisplay({hasGame:()=>!!game});
@@ -13,7 +14,7 @@ const soundButton=document.createElement('button');soundButton.id='sound-toggle'
 const sound=createCombatAudio({onChange:syncSound});
 function syncSound(){soundButton.textContent=sound.enabled?'🔊':'🔇';soundButton.setAttribute('aria-label',sound.enabled?'Slå lyd fra':'Slå lyd til');soundButton.setAttribute('aria-pressed',String(sound.enabled));}syncSound();soundButton.onclick=()=>{sound.toggle();syncSound();};
 const lobby=document.createElement('div');lobby.id='online-lobby';lobby.hidden=true;document.querySelector('.field-stage').append(lobby);
-function syncLobby(){lobby.hidden=kind!=='online'||!room||room.ready;if(!lobby.hidden)lobby.innerHTML=`<span>ONLINE · TO SPILLERE</span><strong>${esc(room.code)}</strong><p>Åbn Artilleri på den anden enhed, vælg en anden spillerprofil og indtast kampkoden.</p><small>Venter på modstander…</small>`;}
+function syncLobby(){lobby.hidden=kind!=='online'||!room||room.ready;if(!lobby.hidden)lobby.innerHTML='<span>ONLINE · TO SPILLERE</span><strong>Venter på modstander</strong><p>Vælg en spiller i menuens spillerliste.</p>';}
 const weaponPicker=initWeaponPicker($('#weapon'),controls);
 for(const event of ['pointerdown','touchend','keydown'])document.addEventListener(event,()=>sound.unlock(),{capture:true,passive:true});
 for(const id of ['leave-game','rotate-back'])$('#'+id).addEventListener('click',()=>sound.suspend());
@@ -76,27 +77,21 @@ canvas.addEventListener('touchend',e=>{if(!display.isActive()||!touchState)retur
 canvas.addEventListener('pointerup',e=>{if(e.pointerType==='mouse'&&display.isActive())$('#fire').click();});
 document.addEventListener('wheel',e=>{if(!display.isActive())return;if(e.cancelable)e.preventDefault();if(e.target.closest('.game')&&!e.target.closest('input,select,button'))adjust(Math.max(-80,Math.min(80,e.deltaX)),Math.max(-80,Math.min(80,e.deltaY)));},{passive:false});
 document.addEventListener('keydown',e=>{if(['INPUT','SELECT','BUTTON'].includes(document.activeElement.tagName))return;if(e.code==='Space'){e.preventDefault();$('#fire').click();}else if(e.code==='ArrowLeft'||e.code==='ArrowRight'||e.code==='ArrowUp'||e.code==='ArrowDown'){e.preventDefault();adjust(e.code==='ArrowLeft'?-12:e.code==='ArrowRight'?12:0,e.code==='ArrowUp'?-8:e.code==='ArrowDown'?8:0);}});
-async function identify(){const p=await online.profile();if(p?.nickname){$('#name').value=p.nickname;onlineStatus(`Logget ind som ${p.nickname}.`);}else onlineStatus('Skriv et ledigt navn og gem profilen.');return p;}
-$('#save-name').onclick=async()=>{try{const name=$('#name').value.trim();if(!/^[\p{L}\p{N} _-]{2,20}$/u.test(name))throw Error('Brug 2–20 bogstaver eller tal.');await online.claim(name);await identify();}catch(e){onlineStatus(e.message);}};
-$('#player-code').onclick=async()=>{try{const c=await online.createCode();$('#code-result').textContent=`${c.nickname}: ${c.code} — gem koden privat.`;}catch(e){$('#code-result').textContent=e.message;}};
-$('#link').onclick=async()=>{try{const r=await online.useCode($('#name').value.trim(),$('#link-code').value.trim());if(r.error)throw Error(r.error);$('#link-code').value='';await identify();$('#code-result').textContent='Profilen er tilknyttet.';}catch(e){$('#code-result').textContent=e.message;}};
 async function sync(next){
  if(!next)return;
  if(animation||hiddenAt!==null){if(!queuedState||next.version>=queuedState.version)queuedState=next;return;}
  const fresh=!game||kind!=='online'||room?.code!==next.code||game.seed!==next.seed;
  if(!fresh&&next.version<lastVersion)return;
- room=next;try{localStorage.setItem('aa-last-room',next.code);}catch{}$('#room').textContent=`Kampkode: ${next.code} · ${next.ready?'Kampen er klar':'Venter på modstander…'}`;$('#code').value=next.code;
+ room=next;try{localStorage.setItem('aa-last-room',next.code);}catch{}$('#room').textContent=`Kampkode: ${next.code} · ${next.ready?'Kampen er klar':'Venter på modstander…'}`;
  if(fresh){cancelPresentation();room=next;kind='online';game=newGame({seed:next.seed,mode:next.mode,names:[next.host_name||'Vært',next.guest_name||'Gæst']});lastVersion=0;guidanceSpent=[0,0];guideUntil=0;try{guidanceSpent[next.seat]=Number(localStorage.getItem(`aa-guide:${next.code}:${next.seat}`))||0;}catch{}document.body.classList.remove('aim-open');$('#aim-toggle').setAttribute('aria-expanded','false');display.enter();}
  game.players[0].name=next.host_name||'Vært';game.players[1].name=next.guest_name||'Gæst';
- if(fresh){for(const shot of next.shots){if(game.winner!==null)break;fire(game,shot);}lastVersion=next.version;busy=false;controls();draw();status(next.ready?(game.turn===next.seat?'Din tur.':'Modstanderens tur.'):'Del kampkoden med en anden spiller.');return;}
+ if(fresh){for(const shot of next.shots){if(game.winner!==null)break;fire(game,shot);}lastVersion=next.version;busy=false;controls();draw();status(next.ready?(game.turn===next.seat?'Din tur.':'Modstanderens tur.'):'Vælg en modstander i menuens spillerliste.');return;}
  if(lastVersion<next.version&&game.winner===null){const result=fire(game,next.shots[lastVersion]);lastVersion++;if(lastVersion<next.version)queuedState=next;animate(result,after);}
- else{busy=false;controls();draw();status(!next.ready?'Venter på modstander · kampkode '+next.code:game.winner!==null?`${game.players[game.winner].name} vinder kampen!`:game.turn===next.seat?'Din tur.':'Modstanderens tur.');}
+ else{busy=false;controls();draw();status(!next.ready?'Venter på modstander':game.winner!==null?`${game.players[game.winner].name} vinder kampen!`:game.turn===next.seat?'Din tur.':'Modstanderens tur.');}
 }
 function startPolling(){clearInterval(poll);poll=setInterval(async()=>{if(!room||busy||document.hidden||hiddenAt!==null||polling)return;const token=epoch,code=room.code;polling=true;try{const next=await online.rpc('aa_state',{p_code:code});if(token===epoch&&room?.code===code&&!busy)await sync(next);}catch(e){if(token===epoch){onlineStatus('Forbindelsen blev afbrudt: '+e.message);status('Forbindelsen er afbrudt. Prøver igen…');}}finally{polling=false;}},1500);}
 
-$('#host').onclick=async()=>{try{await identify();const next=await online.rpc('aa_host',{p_mode:$('#mode').value});await sync(next);startPolling();onlineStatus('Kamp oprettet. Del koden med modstanderen.');}catch(e){onlineStatus(e.message);}};
-$('#join').onclick=async()=>{try{await identify();const next=await online.rpc('aa_join',{p_code:$('#code').value.trim()});await sync(next);startPolling();onlineStatus(next.seat===0?'Du er vært i denne kamp. Modstanderen skal bruge en anden spillerprofil.':'Du er med i kampen.');}catch(e){onlineStatus(e.message);}};
-try{const saved=localStorage.getItem('aa-last-room');if(saved){$('#code').value=saved;$('#join').textContent='Deltag / genoptag';}}catch{}
+initOnlineLobby({api:online,onStart:async next=>{cancelPresentation();await sync(next);startPolling();},isAvailable:()=>!display.isActive()||!game||game.winner!==null,onProfile:()=>{}});
 draw();controls();window.addEventListener('artillery-assets-loaded',draw);
 
 let lastAmbient=0;function ambientFrame(now){if(now-lastAmbient>50&&!document.hidden){draw();lastAmbient=now;}requestAnimationFrame(ambientFrame);}requestAnimationFrame(ambientFrame);
