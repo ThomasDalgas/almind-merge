@@ -1,0 +1,11 @@
+import {chromium,BASE_URL} from './browser-runtime.mjs';import assert from 'node:assert/strict';
+const b=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
+try{
+ for(const [kind,ua] of [['iphone','Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 CriOS/130.0 Mobile Safari/604.1'],['android','Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36 EdgA/130.0']]){
+  const p=await b.newPage({viewport:{width:390,height:844},userAgent:ua});await p.route('https://*.supabase.co/**',r=>r.abort());await p.goto(BASE_URL);await p.locator('#install-game').click();await p.waitForFunction(()=>document.querySelector('#install-help').open);assert.match(await p.locator('#install-steps').textContent(),kind==='iphone'?/Del-menu/:/Edge/);await p.locator('#install-close').click();
+  await p.evaluate(()=>{window.prompts=0;const e=new Event('beforeinstallprompt',{cancelable:true});e.prompt=async()=>{window.prompts++;};e.userChoice=Promise.resolve({outcome:'dismissed'});window.dispatchEvent(e);});await p.locator('#install-game').click();assert.equal(await p.evaluate(()=>window.prompts),1);await p.locator('#install-game').click();assert.ok(await p.locator('#install-help').isVisible());await p.locator('#install-close').click();await p.evaluate(()=>window.dispatchEvent(new Event('appinstalled')));assert.equal(await p.locator('#install-game').isVisible(),false);await p.close();
+ }
+ const p=await b.newPage({viewport:{width:390,height:844}});await p.route('https://*.supabase.co/**',r=>r.abort());await p.goto(BASE_URL);const c=await p.context().newCDPSession(p);console.log('Installability:',JSON.stringify(await c.send('Page.getInstallabilityErrors')));await p.screenshot({path:'/tmp/almind-install.png'});
+ const installed=await b.newPage();await installed.addInitScript(()=>Object.defineProperty(navigator,'standalone',{value:true}));await installed.route('https://*.supabase.co/**',r=>r.abort());await installed.goto(BASE_URL);assert.equal(await installed.locator('#install-game').isVisible(),false);
+ console.log('PASS iPhone/Android browser guidance, native prompt, dismissal/retry, confirmed install and standalone visibility');
+}finally{await b.close();}

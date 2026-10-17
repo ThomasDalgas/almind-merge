@@ -1,7 +1,26 @@
 {
- "id":"./", "name":"Almind-Merge", "short_name":"Almind-Merge",
- "lang":"da", "start_url":"./", "scope":"./",
- "display":"standalone", "orientation":"portrait",
- "background_color":"#084860", "theme_color":"#084860",
- "icons":[{"src":"assets/app-icon.png","sizes":"512x512","type":"image/png","purpose":"any"}]
+ "id": "./",
+ "name": "Almind-Merge",
+ "short_name": "Almind-Merge",
+ "lang": "da",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "portrait",
+ "background_color": "#084860",
+ "theme_color": "#084860",
+ "icons": [
+  {
+   "src": "assets/app-icon.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "assets/app-icon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml",
+   "purpose": "any"
+  }
+ ]
 }

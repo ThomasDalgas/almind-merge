@@ -449,3 +449,8 @@ body.reward-notice #live-announcement{opacity:0;visibility:hidden}
 #load-retry{margin-top:7px;padding:5px 14px;border:1px solid #f8d777;border-radius:8px;background:#fff0ad;color:#10475a}
 body.started #game-loading{display:none}
 body:not(.started) #play:disabled{opacity:.5;cursor:wait;transform:none}
+
+#install-game{margin:16px 0 0;padding:10px 18px;border:1px solid #f8d77799;border-radius:12px;background:#07536e;color:#fff0ad;font-size:15px;font-weight:700;cursor:pointer;min-height:44px;flex-shrink:0}
+#install-game:hover{background:#09677f}#install-game:focus-visible{outline:3px solid #fff0ad;outline-offset:3px}
+#install-game[hidden],body.started #install-game{display:none}
+#install-help{width:min(92vw,460px);max-height:85dvh;overflow:auto}#install-help .install-icon{display:block;margin:6px auto 18px;border-radius:16px}#install-steps{padding-left:24px;line-height:1.5}#install-steps li+li{margin-top:12px}#install-note{font-size:13px;line-height:1.5;color:#48606a}
