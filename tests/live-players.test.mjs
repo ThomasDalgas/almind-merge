@@ -6,7 +6,8 @@ test('A ticket arriving after pause never publishes the player as active',async(
  const live=createLivePlayers({api:{live:async(...args)=>{calls.push(args);return {players:[],records:[]};}},getTicket:()=>ticket,getState:()=>({mode,score:10,maxTier:1}),getNickname:()=> 'Thomas',render:(...r)=>renders.push(r),visible:()=>false,online:()=>true});
  live.changed();mode='paused';live.changed();resolve({id:'round'});await flush();assert.equal(calls.length,1);assert.equal(calls[0][4],false);assert.equal(renders.length,1);
 });
-test('A failed restart ticket retires old presence and never publishes new score to old round',async()=>{
+test('A failed restart ticket retires old presence and never publishes new score to old round',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
  let ticket={id:'old'},mode='playing';const calls=[];
  const live=createLivePlayers({api:{live:async(...args)=>{calls.push(args);return {players:[]};},liveList:async()=>({players:[]})},getTicket:async()=>ticket,getState:()=>({mode,score:12,maxTier:1}),getNickname:()=> 'Thomas',render:()=>{},visible:()=>true,online:()=>true,interval:100000});
  live.changed();await flush();assert.equal(calls[0][4],true);ticket=null;live.changed();await flush();assert.equal(calls.length,2);assert.equal(calls[1][4],false);mode='over';live.changed();await flush();
@@ -55,10 +56,11 @@ test('Own presence failure still displays public players with an honest status',
  const live=createLivePlayers({api:{live:async()=>{throw new Error('Unknown round');},liveList:async()=>snapshot},getTicket:async()=>({id:'r'}),getState:()=>({mode,score:4,maxTier:1}),getNickname:()=> 'Thomas',render:(...args)=>renders.push(args),visible:()=>false,online:()=>true});
  live.changed();await flush();assert.equal(renders[0][1],'readonly');assert.deepEqual(renders[0][0].players,snapshot.players);assert.equal(renders[0][0].connectionError,'Unknown round');
 });
-test('Fallback response is discarded after lifecycle change',async()=>{
- let mode='playing',release;const renders=[];
- const live=createLivePlayers({api:{live:async()=>{throw new Error('failure');},liveList:()=>new Promise(r=>release=r)},getTicket:async()=>null,getState:()=>({mode}),getNickname:()=>'',render:(...args)=>renders.push(args),visible:()=>false,online:()=>true});
- live.changed();await flush();mode='over';live.changed();release({players:[{nickname:'stale'}]});await flush();assert.equal(renders.length,0);release({players:[]});await flush();assert.equal(renders[0][1],'idle');
+test('Fallback response is discarded after lifecycle change',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ let mode='playing',release,visible=false;const renders=[];
+ const live=createLivePlayers({api:{live:async()=>{throw new Error('failure');},liveList:()=>new Promise(r=>release=r)},getTicket:async()=>null,getState:()=>({mode}),getNickname:()=>'',render:(...args)=>renders.push(args),visible:()=>visible,online:()=>true});
+ live.changed();await flush();visible=true;mode='over';live.changed();release({players:[{nickname:'stale'}]});await flush();assert.equal(renders.length,0);release({players:[]});await flush();assert.equal(renders[0][1],'connected');
 });
 
 test('Game Over excludes self/history, deduplicates and waits behind rewards for three visible seconds',t=>{
@@ -77,4 +79,16 @@ test('A live toast interrupted by a reward is shown again after the reward',t=>{
  const n=createLiveNotices({canNotify:()=>true,show:e=>shown.push(e),hide:()=>{}});
  n.observe({},'connected');n.observe({gameovers:[{id:'r',nickname:'Tina',score:100}]},'connected');
  t.mock.timers.tick(1500);n.suspend();t.mock.timers.tick(5000);n.resume();assert.equal(shown.length,2);n.clear();
+});
+
+test('Spectators see players before and after rounds, poll slowly, and never claim a round',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});let mode='ready',shown=true,reads=0;const renders=[],writes=[];
+ const snapshot={players:[{nickname:'Niklas',score:123}]};
+ const live=createLivePlayers({api:{liveList:async()=>{reads++;return snapshot;},live:async(...args)=>{writes.push(args);return snapshot;}},getTicket:async()=>{assert.equal(mode,'playing');return {id:'r'};},getState:()=>({mode,score:10,maxTier:1}),getNickname:()=> 'Me',render:(...r)=>renders.push(r),visible:()=>shown,online:()=>true});
+ live.changed();await flush();assert.equal(reads,1);assert.deepEqual(renders.at(-1),[snapshot,'connected']);assert.equal(writes.length,0);
+ t.mock.timers.tick(15000);await flush();assert.equal(reads,2);
+ mode='playing';live.changed();await flush();assert.equal(writes.at(-1)[4],true);
+ mode='over';live.changed();await flush();assert.equal(writes.at(-1)[4],false);assert.deepEqual(renders.at(-1),[snapshot,'connected']);const count=writes.length;
+ t.mock.timers.tick(15000);await flush();assert.equal(writes.length,count);
+ shown=false;live.changed();await flush();const old=reads;t.mock.timers.tick(60000);await flush();assert.equal(reads,old);
 });

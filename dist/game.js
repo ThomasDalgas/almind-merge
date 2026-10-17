@@ -2,7 +2,7 @@ import {createPlayClock,formatPlayTime} from './play-time.js?v=1.1.0';
 import {earnedPowers,createRewardNotices} from './reward-notices.js?v=gameover-notices-v1';
 import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
-import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=gameover-notices-v1';
+import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
 import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.1.0';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=svend-bonus-v2';
@@ -350,11 +350,11 @@ const rewardNotices=createRewardNotices({
 });
 const liveNotices=createLiveNotices({canNotify:()=>mode==='playing'&&!document.hidden,show:notice=>{const el=$('#live-announcement');el.textContent=notice.text;el.dataset.kind=notice.kind;el.classList.add('visible');},hide:()=>$('#live-announcement').classList.remove('visible')});
 const livePlayers=createLivePlayers({api:scoreApi,getTicket:liveRoundTicket,getNickname:liveNickname,getState:()=>({mode,score:round.score,maxTier:round.maxTier}),render:(snapshot,status)=>{renderLivePlayers(snapshot,status);liveNotices.observe(snapshot,status);},visible:()=>!document.hidden&&!departed});
-window.addEventListener('pagehide',()=>{departed=true;livePlayers.changed();});window.addEventListener('pageshow',()=>{departed=false;if(mode!=='ready')livePlayers.changed();});
-window.addEventListener('online',()=>{if(mode!=='ready')livePlayers.changed();});window.addEventListener('offline',()=>{if(mode!=='ready')livePlayers.changed();});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)rewardNotices.clear();if(mode!=='ready')livePlayers.changed();});
+window.addEventListener('pagehide',()=>{departed=true;livePlayers.changed();});window.addEventListener('pageshow',()=>{departed=false;livePlayers.changed();});
+window.addEventListener('online',()=>{livePlayers.changed();});window.addEventListener('offline',()=>{livePlayers.changed();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)rewardNotices.clear();livePlayers.changed();});
 const mobileDisplay=initMobileDisplay({isPlaying:()=>mode==='playing',pause,cancelDrag:()=>{dragging=false;}});
-initLeaderboard();updateSoundButton();buildFamily();requestAnimationFrame(frame);
+initLeaderboard();livePlayers.changed();updateSoundButton();buildFamily();requestAnimationFrame(frame);
 $('#play').disabled=true;
 (async()=>{
  let imageDone=0,imageTotal=11,rulesDone=false,failed=false;

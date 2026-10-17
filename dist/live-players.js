@@ -8,6 +8,11 @@ export function createLivePlayers({api,getTicket,getState,getNickname,render,vis
   try{
    const state=getState();
    if(!online()){render([],'offline');return;}
+   if(['ready','over'].includes(state.mode)){
+    if(lastRound){const retired=lastRound;lastRound=null;await api.live(retired,'',0,0,false);}
+    if(revision!==version||!visible())return;
+    const snapshot=await api.liveList();if(revision===version)render(snapshot,'connected');return;
+   }
    const ticket=await getTicket();if(revision!==version)return;
    const now=getState(),active=now.mode==='playing'&&visible();
    const id=ticket?.id||(active?null:lastRound);
@@ -17,21 +22,20 @@ export function createLivePlayers({api,getTicket,getState,getNickname,render,vis
    if(active&&!id)throw new Error('Runden er ikke tilsluttet. Prøv at starte en ny runde.');
    const rows=id?await api.live(id,getNickname(),now.score,now.maxTier,active):await api.liveList();
    if(revision!==version)return;
-   if(now.mode==='over'||now.mode==='ready'){lastRound=null;render([],'idle');}
-   else render(rows,'connected');
+   render(rows,'connected');
   }catch(error){
    if(revision!==version)return;
    // Reading other players must not depend on publishing this device's round.
    try{
     const snapshot=await api.liveList();if(revision!==version)return;
-    if(['ready','over'].includes(getState().mode))render([],'idle');
+    if(['ready','over'].includes(getState().mode))render(snapshot,'connected');
     else render({...snapshot,connectionError:error.message||'Din egen score kunne ikke deles.'},'readonly');
    }catch{if(revision===version)render([],'offline');}
   }
   finally{
    busy=false;
    if(dirty){void tick();}
-   else if(['playing','paused'].includes(getState().mode)&&visible())timer=setTimeout(()=>{void tick();},getState().mode==='paused'?pausedInterval:interval);
+   else if(visible())timer=setTimeout(()=>{void tick();},getState().mode==='playing'?interval:pausedInterval);
   }
  }
  return {changed};
