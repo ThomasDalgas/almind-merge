@@ -1,5 +1,6 @@
-import {drawTank,drawBlast} from './tank-visuals.js?v=cinema-12';
-import {W,H,trace,terrain,materialAt} from './rules.js?v=cinema-12';
+import {clusterFlight} from './combat-cues.js?v=arsenal-13';
+import {drawTank,drawBlast} from './tank-visuals.js?v=arsenal-13';
+import {W,H,trace,terrain,materialAt} from './rules.js?v=arsenal-13';
 const assets={};for(const [key,name] of Object.entries({hull:'tank-hull-v2.webp',cannon:'tank-cannon-v2.webp',cloud:'cloud-bank-v2.webp',backdrop:'mountain-backdrop-v2.webp',pine:'pine-photoreal.png',soil:'soil-texture-v2.webp',rock:'rock-texture-v2.webp'})){const img=new Image();img.src=new URL('./assets/'+name,import.meta.url).href;img.onload=()=>window.dispatchEvent(new Event('artillery-assets-loaded'));assets[key]=img;}
 const ready=name=>assets[name].complete&&assets[name].naturalWidth>0;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -20,10 +21,10 @@ function landscapeDetails(c,g,seed,round,time,wind){
 }
 function windFlag(c,g,wind,time){const x=475,y=g[x]-3,dir=wind===0?1:Math.sign(wind),strength=Math.abs(wind),poleTop=y-76,length=wind===0?24:30+strength*2.4,phase=time*(4.5+strength*.34);c.save();const mast=c.createLinearGradient(x-2,0,x+3,0);mast.addColorStop(0,'#263635');mast.addColorStop(.42,'#d9d3ac');mast.addColorStop(1,'#364947');c.strokeStyle=mast;c.lineWidth=3;c.beginPath();c.moveTo(x,y);c.lineTo(x,poleTop-3);c.stroke();c.fillStyle='#e2c788';c.beginPath();c.arc(x,poleTop-4,3.1,0,Math.PI*2);c.fill();c.fillStyle='#25392f';c.beginPath();c.ellipse(x,y,7,2.6,0,0,Math.PI*2);c.fill();const wave=u=>Math.sin(phase-u*5.2)*Math.min(7,1.5+strength*.7)*u+Math.sin(phase*.67+u*3.7)*2*u+(wind===0?u*u*7:0), top=u=>poleTop-1+wave(u)-u*1.5,bottom=u=>poleTop+18+wave(u)+u*2;const sections=12;c.beginPath();c.moveTo(x,top(0));for(let i=1;i<=sections;i++){const u=i/sections;c.lineTo(x+dir*length*u,top(u));}c.lineTo(x+dir*length*.81,bottom(1)-4);c.lineTo(x+dir*length,bottom(1));for(let i=sections-1;i>=0;i--){const u=i/sections;c.lineTo(x+dir*length*u,bottom(u));}c.closePath();const cloth=c.createLinearGradient(x,poleTop,x+dir*length,poleTop);cloth.addColorStop(0,'#245a59');cloth.addColorStop(.38,'#327a77');cloth.addColorStop(.72,'#1b5b60');cloth.addColorStop(1,'#174349');c.fillStyle=cloth;c.fill();c.strokeStyle='#e1e6d385';c.lineWidth=.8;c.stroke();c.save();c.clip();for(let i=1;i<=4;i++){const u=i/5;c.strokeStyle=i%2?'#f5ebca30':'#062b3550';c.lineWidth=3;c.beginPath();c.moveTo(x+dir*length*u,top(u)-2);c.lineTo(x+dir*length*(u+.06),bottom(Math.min(1,u+.06))+2);c.stroke();}c.fillStyle='#f4c978';c.beginPath();c.moveTo(x+dir*length*.16,poleTop+8+wave(.16));c.lineTo(x+dir*length*.29,poleTop+3+wave(.29));c.lineTo(x+dir*length*.42,poleTop+8+wave(.42));c.lineTo(x+dir*length*.29,poleTop+13+wave(.29));c.closePath();c.fill();c.restore();c.fillStyle='#fff4d9';c.font='bold 12px system-ui';c.textAlign='center';c.fillText('VIND '+(wind<0?'←':wind>0?'→':'·')+' '+strength,x,y-88);c.restore();}
 function shell(c,x,y,a,weapon='shell',time=0){
- c.save();c.translate(x,y);c.rotate(a);const size=weapon==='heavy'?1.35:weapon==='cluster'?1.12:1;c.scale(size,size);
+ c.save();c.translate(x,y);c.rotate(a);const size=weapon==='heavy'?1.55:weapon==='cluster'?1.22:weapon==='bomblet'?.63:1;c.scale(size,size);
  for(let i=7;i>0;i--){const trail=i*7;c.fillStyle=`rgba(255,${Math.round(135+i*12)},${Math.round(75+i*10)},${.035+(8-i)*.018})`;c.beginPath();c.ellipse(-trail,Math.sin(time*18-i)*1.8,8+i*.7,2+i*.22,0,0,Math.PI*2);c.fill();}
  const glow=c.createRadialGradient(-5,0,1,-5,0,22);glow.addColorStop(0,'#ffe8a0a0');glow.addColorStop(1,'#ff8a2700');c.fillStyle=glow;c.fillRect(-27,-22,44,44);
- c.fillStyle='#23343b';c.strokeStyle='#ffe2aa';c.lineWidth=1.2;c.beginPath();c.moveTo(12,0);c.quadraticCurveTo(5,-5,-7,-4);c.lineTo(-11,-3);c.lineTo(-11,3);c.lineTo(-7,4);c.quadraticCurveTo(5,5,12,0);c.fill();c.stroke();c.fillStyle='#b6a18a';c.fillRect(-10,-3,3,6);c.fillStyle='#fff3d4';c.beginPath();c.ellipse(7,-1,3,1.2,-.2,0,Math.PI*2);c.fill();c.restore();
+ c.fillStyle=weapon==='heavy'?'#a3533d':weapon==='cluster'?'#438575':weapon==='bomblet'?'#d2a54e':'#526373';c.strokeStyle=weapon==='cluster'?'#c7f4df':'#ffe2aa';c.lineWidth=1.2;c.beginPath();c.moveTo(12,0);c.quadraticCurveTo(5,-5,-7,-4);c.lineTo(-11,-3);c.lineTo(-11,3);c.lineTo(-7,4);c.quadraticCurveTo(5,5,12,0);c.fill();c.stroke();c.fillStyle=weapon==='heavy'?'#f4d19b':'#b6a18a';c.fillRect(-10,-3,3,6);if(weapon==='cluster'){c.strokeStyle='#d2e8cd';c.lineWidth=.8;for(const sx of [-4,1,6]){c.beginPath();c.moveTo(sx,-3);c.lineTo(sx,3);c.stroke();}}if(weapon==='heavy'){c.fillStyle='#e4bb7c';c.fillRect(-3,-4,3,8);}if(weapon==='bomblet'){c.fillStyle='#494f4d';c.beginPath();c.moveTo(-8,0);c.lineTo(-13,-6);c.lineTo(-11,0);c.lineTo(-13,6);c.closePath();c.fill();}c.fillStyle='#fff3d4';c.beginPath();c.ellipse(7,-1,3,1.2,-.2,0,Math.PI*2);c.fill();c.restore();
 }
 export function render(c,game,{animation=null,preview=null,aim=null,time=0}={}){
  const wind=animation?animation.windBefore:game?.wind||0;sky(c,wind,time);
@@ -38,8 +39,9 @@ export function render(c,game,{animation=null,preview=null,aim=null,time=0}={}){
   drawTank(c,shown,i,Math.sign(enemy.x-shown.x)||1,assets,time,impact?animation.impactAge/1000:10);
  }
  if(animation){const {path,index,hit}=animation;
+  if(animation.weapon==='cluster'){for(const p of clusterFlight(animation,animation.elapsed))shell(c,p.x,p.y,p.angle,p.carrier?'cluster':'bomblet',time);}
   if(flight){const k=Math.floor(index),next=path[Math.min(k+1,path.length-1)],point=path[k],mix=index-k;
-   if(point){const x=point[0]+(next[0]-point[0])*mix,y=point[1]+(next[1]-point[1])*mix,a=point[2]+(next[2]-point[2])*mix;shell(c,x,y,a,animation.weapon,time);}
+   if(point&&animation.weapon!=='cluster'){const x=point[0]+(next[0]-point[0])*mix,y=point[1]+(next[1]-point[1])*mix,a=point[2]+(next[2]-point[2])*mix;shell(c,x,y,a,animation.weapon,time);}
   }else{const seconds=animation.impactAge/1000;drawBlast(c,hit.x,hit.y,seconds,animation.radius,{direct:hit.direct,weapon:animation.weapon,miss:hit.miss,rock:materialAt(game.seed,round,hit.x)==='rock'});
    if(animation.weapon==='cluster'&&!hit.miss){drawBlast(c,hit.x-34,hit.y,seconds-.13,27,{});drawBlast(c,hit.x+34,hit.y,seconds-.2,27,{});}
   }

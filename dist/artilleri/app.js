@@ -1,12 +1,28 @@
-import {shotFrame} from './presentation.js?v=cinema-12';
-import {W,H,newGame,fire,bestShot,weapons} from './rules.js?v=cinema-12';
-import {render} from './render.js?v=cinema-12';
-import {swipeAim,guidanceCharges} from './aim.js?v=cinema-12';
-import {initDisplay} from './display.js?v=cinema-12';
+import {createCombatAudio} from './audio.js?v=arsenal-13';
+import {initWeaponPicker} from './weapon-picker.js?v=arsenal-13';
+import {shotFrame} from './presentation.js?v=arsenal-13';
+import {W,H,newGame,fire,bestShot,weapons} from './rules.js?v=arsenal-13';
+import {render} from './render.js?v=arsenal-13';
+import {swipeAim,guidanceCharges} from './aim.js?v=arsenal-13';
+import {initDisplay} from './display.js?v=arsenal-13';
 import * as online from './online.js';
 const $=s=>document.querySelector(s),canvas=$('#field'),ctx=canvas.getContext('2d',{alpha:false});const renderScale=Math.min(2,Math.max(1.5,window.devicePixelRatio||1));canvas.width=Math.round(W*renderScale);canvas.height=Math.round(H*renderScale);ctx.setTransform(renderScale,0,0,renderScale,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
 let game=null,kind=null,room=null,animation=null,poll=null,busy=false,lastVersion=-1,guidanceSpent=[0,0],guideUntil=0,guideTimer=null,bannerTimer=null,aiTimer=null,frameId=null,epoch=0,queuedState=null,polling=false;
 const display=initDisplay({hasGame:()=>!!game});
+const soundButton=document.createElement('button');soundButton.id='sound-toggle';soundButton.type='button';document.querySelector('.game-actions').append(soundButton);
+const sound=createCombatAudio({onChange:syncSound});
+function syncSound(){soundButton.textContent=sound.enabled?'🔊':'🔇';soundButton.setAttribute('aria-label',sound.enabled?'Slå lyd fra':'Slå lyd til');soundButton.setAttribute('aria-pressed',String(sound.enabled));}syncSound();soundButton.onclick=()=>{sound.toggle();syncSound();};
+const weaponPicker=initWeaponPicker($('#weapon'),controls);
+for(const event of ['pointerdown','touchend','keydown'])document.addEventListener(event,()=>sound.unlock(),{capture:true,passive:true});
+for(const id of ['leave-game','rotate-back'])$('#'+id).addEventListener('click',()=>sound.suspend());
+window.addEventListener('pagehide',()=>sound.suspend());
+let hiddenAt=null,pausedMs=0;
+function presentationNow(now=performance.now()){return now-pausedMs-(hiddenAt===null?0:now-hiddenAt);}
+const resumePlayback=document.createElement('button');resumePlayback.id='resume-playback';resumePlayback.type='button';resumePlayback.textContent='▶ Fortsæt spil';resumePlayback.hidden=true;document.querySelector('.field-stage').append(resumePlayback);
+function resumeFromBackground(){sound.unlock();if(hiddenAt!==null){pausedMs+=performance.now()-hiddenAt;hiddenAt=null;}resumePlayback.hidden=true;controls();if(!animation&&queuedState){const next=queuedState;queuedState=null;void sync(next);}else if(!animation&&kind==='solo'&&game?.turn===1&&!busy)after();}
+resumePlayback.onclick=resumeFromBackground;
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(hiddenAt===null)hiddenAt=performance.now();sound.suspend();}else if(hiddenAt!==null){if(game&&display.isActive())resumePlayback.hidden=false;else resumeFromBackground();}controls();});
+
 const banner=document.createElement('div');banner.id='result-banner';banner.hidden=true;banner.setAttribute('role','status');banner.setAttribute('aria-live','polite');document.querySelector('.field-stage').append(banner);
 function hideBanner(){clearTimeout(bannerTimer);banner.hidden=true;}
 function showOutcome(result,roundResult=false){
@@ -16,7 +32,7 @@ function showOutcome(result,roundResult=false){
  banner.innerHTML=`<strong>${esc(title)}</strong><span>${esc(gains)}</span>${roundResult?`<small>${lead===null?'Stillingen er lige':`${esc(game.players[lead].name)} fører · ${metric(game.players[lead])}–${metric(game.players[1-lead])}`}</small>`:''}`;
  banner.classList.toggle('round-result',roundResult);banner.classList.toggle('impact-result',!roundResult);banner.hidden=false;
 }
-function cancelPresentation(){epoch++;clearTimeout(aiTimer);cancelAnimationFrame(frameId);animation=null;queuedState=null;hideBanner();busy=false;}
+function cancelPresentation(){if(hiddenAt!==null){pausedMs+=performance.now()-hiddenAt;hiddenAt=null;}resumePlayback.hidden=true;sound.stop();weaponPicker.close();epoch++;clearTimeout(aiTimer);cancelAnimationFrame(frameId);animation=null;queuedState=null;hideBanner();busy=false;}
 function shownGame(){
  if(!game||!animation)return game;
  const flight=animation.index<animation.path.length,players=(flight?animation.before:animation.impactPlayers).map((p,i)=>({...game.players[i],...p,score:flight?p.score:game.players[i].score,cash:flight?p.cash:game.players[i].cash}));
@@ -25,16 +41,16 @@ function shownGame(){
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function status(s){$('#status').textContent=s;}function onlineStatus(s){$('#online-status').textContent=s;}
-function controls(){const view=shownGame();const can=!!game&&game.winner===null&&!busy&&(kind!=='online'||(room?.ready&&room.seat===game.turn))&&(kind!=='solo'||game.turn===0);$('#fire').disabled=!can;for(const id of ['angle','power','weapon'])$('#'+id).disabled=!can;$('#angle-value').textContent=$('#angle').value+'°';$('#power-value').textContent=$('#power').value+'%';$('#aim-toggle').textContent=`Sigt ${$('#angle').value}° · ${$('#power').value}%`;const power=Number($('#power').value);$('#power-value').style.color=power<42?'#64d99b':power<73?'#f4d26a':'#f18772';const leader=game&&view.players[0].score!==view.players[1].score?(view.players[0].score>view.players[1].score?0:1):null;for(let i=0;i<2;i++)$('#player'+i).classList.toggle('leader',leader===i);$('#player0').innerHTML=game?`<b>${esc(view.players[0].name)}</b><small>${leader===0?'<em>FØRER · </em>':''}♥ ${view.players[0].hp} · ★ ${view.players[0].score} · ◇ ${view.players[0].cash}</small>`:'';$('#player1').innerHTML=game?`<b>${esc(view.players[1].name)}</b><small>${leader===1?'<em>FØRER · </em>':''}♥ ${view.players[1].hp} · ★ ${view.players[1].score} · ◇ ${view.players[1].cash}</small>`:'';$('#round').textContent=game?`RUNDE ${view.round} / ${game.maxRounds}  ·  VIND ${view.wind>0?'→':view.wind<0?'←':'·'} ${Math.abs(view.wind)}`:'';$('#connection').textContent=kind==='online'?'● ONLINE':'● LOKAL';const seat=game?.turn??0,charges=game?guidanceCharges(view.players[seat].score,guidanceSpent[seat]):0;$('#guide').disabled=!can||charges<1||Date.now()<guideUntil;$('#guide').textContent=matchMedia('(any-pointer:coarse) and (orientation:landscape) and (max-height:600px)').matches?(Date.now()<guideUntil?'Bane aktiv':`Bane · ${charges}`):(Date.now()<guideUntil?'Banevisning aktiv':`Banevisning · ${charges}`);display.sync();}
+function controls(){const view=shownGame();const can=!!game&&game.winner===null&&!busy&&hiddenAt===null&&(kind!=='online'||(room?.ready&&room.seat===game.turn))&&(kind!=='solo'||game.turn===0);$('#fire').disabled=!can;weaponPicker.sync({can,cash:game?game.players[game.turn].cash:0});for(const id of ['angle','power','weapon'])$('#'+id).disabled=!can;$('#angle-value').textContent=$('#angle').value+'°';$('#power-value').textContent=$('#power').value+'%';$('#aim-toggle').textContent=`Sigt ${$('#angle').value}° · ${$('#power').value}%`;const power=Number($('#power').value);$('#power-value').style.color=power<42?'#64d99b':power<73?'#f4d26a':'#f18772';const leader=game&&view.players[0].score!==view.players[1].score?(view.players[0].score>view.players[1].score?0:1):null;for(let i=0;i<2;i++)$('#player'+i).classList.toggle('leader',leader===i);$('#player0').innerHTML=game?`<b>${esc(view.players[0].name)}</b><small>${leader===0?'<em>FØRER · </em>':''}♥ ${view.players[0].hp} · ★ ${view.players[0].score} · ◇ ${view.players[0].cash}</small>`:'';$('#player1').innerHTML=game?`<b>${esc(view.players[1].name)}</b><small>${leader===1?'<em>FØRER · </em>':''}♥ ${view.players[1].hp} · ★ ${view.players[1].score} · ◇ ${view.players[1].cash}</small>`:'';$('#round').textContent=game?`RUNDE ${view.round} / ${game.maxRounds}  ·  VIND ${view.wind>0?'→':view.wind<0?'←':'·'} ${Math.abs(view.wind)}`:'';$('#connection').textContent=kind==='online'?'● ONLINE':'● LOKAL';const seat=game?.turn??0,charges=game?guidanceCharges(view.players[seat].score,guidanceSpent[seat]):0;$('#guide').disabled=!can||charges<1||Date.now()<guideUntil;$('#guide').textContent=matchMedia('(any-pointer:coarse) and (orientation:landscape) and (max-height:600px)').matches?(Date.now()<guideUntil?'Bane aktiv':`Bane · ${charges}`):(Date.now()<guideUntil?'Banevisning aktiv':`Banevisning · ${charges}`);display.sync();}
 function draw(){const preview=game&&!animation&&Date.now()<guideUntil&&(kind!=='online'||room?.seat===game.turn)?{angle:Number($('#angle').value),power:Number($('#power').value)}:null;render(ctx,game,{animation,preview,aim:game?{player:game.turn,angle:Number($('#angle').value)}:null,time:performance.now()/1000});}
 function animate(result,done){
- const token=epoch;hideBanner();busy=true;const start=performance.now();let impacted=false,resultShown=false;
- animation={...result,path:result.hit.path,radius:weapons[result.weapon].radius,...shotFrame(result,0)};controls();
- function frame(now){if(token!==epoch)return;const state=shotFrame(result,now-start);Object.assign(animation,state);
+ const token=epoch;hideBanner();busy=true;weaponPicker.close();const start=presentationNow();let impacted=false,resultShown=false;
+ animation={...result,path:result.hit.path,radius:weapons[result.weapon].radius,...shotFrame(result,0)};sound.begin(result);sound.update(0,animation);controls();
+ function frame(now){if(token!==epoch)return;if(document.hidden||hiddenAt!==null){frameId=requestAnimationFrame(frame);return;}const elapsed=Math.max(0,presentationNow(now)-start),state=shotFrame(result,elapsed);Object.assign(animation,state);sound.update(elapsed,state);
   if(!state.flight&&!impacted){impacted=true;status(describe(result));showOutcome(result,false);controls();}
   if(result.ended&&state.showBanner&&!resultShown){resultShown=true;showOutcome(result,true);}
   if(!result.ended&&!state.showBanner&&impacted)hideBanner();
-  draw();if(state.done){hideBanner();animation=null;busy=false;controls();draw();done?.();}else frameId=requestAnimationFrame(frame);
+  draw();if(state.done){sound.finish();hideBanner();animation=null;busy=false;controls();draw();done?.();}else frameId=requestAnimationFrame(frame);
  }frameId=requestAnimationFrame(frame);
 }
 function describe(result){const hit=result.damages[1-result.actor],self=result.damages[result.actor];return hit?`${game.players[result.actor].name} ramte for ${hit} skade${self?' og tog '+self+' selv':''}.`:`${game.players[result.actor].name}: ${self?'Egen skade '+self+'.':result.hit.miss?'Forbi målet.':'Terrænet blev ramt.'}`;}
@@ -43,7 +59,7 @@ function after(){
  if(queuedState){const next=queuedState;queuedState=null;void sync(next);return;}
  if(game.winner!==null){status(`${game.players[game.winner].name} vinder kampen! ${game.players[0].score}–${game.players[1].score}.`);return;}
  status(kind==='online'?(game.turn===room?.seat?'Din tur.':'Modstanderens tur.'):`${game.players[game.turn].name} skyder nu.`);
- if(kind==='solo'&&game.turn===1){busy=true;controls();const token=epoch;aiTimer=setTimeout(()=>{if(token!==epoch)return;const result=fire(game,bestShot(game,1));animate(result,after);},700);}
+ if(kind==='solo'&&game.turn===1){busy=true;controls();const token=epoch;aiTimer=setTimeout(()=>{if(token!==epoch)return;if(hiddenAt!==null){busy=false;return;}const result=fire(game,bestShot(game,1));animate(result,after);},700);}
 }
 
 function reset(mode){cancelPresentation();clearInterval(poll);poll=null;room=null;kind=mode;game=newGame({mode:$('#mode').value,names:mode==='solo'?[$('#name').value.trim()||'Du','Computer']:[$('#name').value.trim()||'Spiller 1','Spiller 2']});lastVersion=-1;busy=false;guidanceSpent=[0,0];guideUntil=0;clearTimeout(guideTimer);document.body.classList.remove('aim-open');$('#aim-toggle').setAttribute('aria-expanded','false');display.enter();status(mode==='solo'?'Din tur. Vælg vinkel og kraft.':'Spiller 1 begynder.');controls();draw();}
@@ -64,7 +80,7 @@ $('#player-code').onclick=async()=>{try{const c=await online.createCode();$('#co
 $('#link').onclick=async()=>{try{const r=await online.useCode($('#name').value.trim(),$('#link-code').value.trim());if(r.error)throw Error(r.error);$('#link-code').value='';await identify();$('#code-result').textContent='Profilen er tilknyttet.';}catch(e){$('#code-result').textContent=e.message;}};
 async function sync(next){
  if(!next)return;
- if(animation){if(!queuedState||next.version>=queuedState.version)queuedState=next;return;}
+ if(animation||hiddenAt!==null){if(!queuedState||next.version>=queuedState.version)queuedState=next;return;}
  const fresh=!game||kind!=='online'||room?.code!==next.code||game.seed!==next.seed;
  if(!fresh&&next.version<lastVersion)return;
  room=next;$('#room').textContent=`Kampkode: ${next.code} · ${next.ready?'Kampen er klar':'Venter på modstander…'}`;$('#code').value=next.code;
@@ -74,7 +90,7 @@ async function sync(next){
  if(lastVersion<next.version&&game.winner===null){const result=fire(game,next.shots[lastVersion]);lastVersion++;if(lastVersion<next.version)queuedState=next;animate(result,after);}
  else{busy=false;controls();draw();status(game.winner!==null?`${game.players[game.winner].name} vinder kampen!`:game.turn===next.seat?'Din tur.':'Modstanderens tur.');}
 }
-function startPolling(){clearInterval(poll);poll=setInterval(async()=>{if(!room||document.hidden||polling)return;const token=epoch,code=room.code;polling=true;try{const next=await online.rpc('aa_state',{p_code:code});if(token===epoch&&room?.code===code)await sync(next);}catch(e){if(token===epoch)onlineStatus('Forbindelsen blev afbrudt: '+e.message);}finally{polling=false;}},1500);}
+function startPolling(){clearInterval(poll);poll=setInterval(async()=>{if(!room||document.hidden||hiddenAt!==null||polling)return;const token=epoch,code=room.code;polling=true;try{const next=await online.rpc('aa_state',{p_code:code});if(token===epoch&&room?.code===code)await sync(next);}catch(e){if(token===epoch)onlineStatus('Forbindelsen blev afbrudt: '+e.message);}finally{polling=false;}},1500);}
 
 $('#host').onclick=async()=>{try{await identify();const next=await online.rpc('aa_host',{p_mode:$('#mode').value});await sync(next);startPolling();onlineStatus('Kamp oprettet. Del koden med modstanderen.');}catch(e){onlineStatus(e.message);}};
 $('#join').onclick=async()=>{try{await identify();const next=await online.rpc('aa_join',{p_code:$('#code').value.trim()});await sync(next);startPolling();onlineStatus('Du er med i kampen.');}catch(e){onlineStatus(e.message);}};

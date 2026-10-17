@@ -9,7 +9,7 @@ export function shotTiming(result) {
 export function shotFrame(result,elapsed) {
   const timing=shotTiming(result),impactAge=Math.max(0,elapsed-timing.flightMs);
   const flight=elapsed<timing.flightMs;
-  return {...timing,flight,impactAge,index:flight?Math.min(result.hit.path.length-1,elapsed/timing.flightMs*Math.max(0,result.hit.path.length-1)):result.hit.path.length+impactAge/1000*30,
+  return {...timing,elapsed,flight,impactAge,index:flight?Math.min(result.hit.path.length-1,elapsed/timing.flightMs*Math.max(0,result.hit.path.length-1)):result.hit.path.length+impactAge/1000*30,
     motionIndex:Math.min(Math.max(0,result.motion.length-1),Math.floor(impactAge/24)),
     showBanner:!flight&&impactAge>=timing.bannerMs&&impactAge<timing.bannerMs+timing.holdMs,
     done:elapsed>=timing.totalMs};
