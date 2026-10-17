@@ -33,7 +33,18 @@ const playClock=createPlayClock();
 const playSeconds=()=>Math.max(time,playClock.seconds());
 setRoundTimeSource(playSeconds);
 function scoreEvent(kind,tier){recordScoreEvent(kind,tier,playSeconds());}
-function syncClock(){const text=formatPlayTime(playSeconds());if($('#play-time').textContent!==text)$('#play-time').textContent=text;}
+function syncClock(){
+ // A cached older page may not contain the clock yet. Optional UI must not stop rendering.
+ let clock=$('#play-time');
+ if(!clock){
+  const card=$('.score-card');if(!card)return;
+  const row=document.createElement('div'),label=document.createElement('span');
+  row.className='round-clock';row.setAttribute('aria-label','Spilletid');label.textContent='Spilletid';
+  clock=document.createElement('time');clock.id='play-time';clock.title='Spilletid';
+  row.append(label,clock);card.insertBefore(row,card.querySelector('.record'));
+ }
+ const text=formatPlayTime(playSeconds());if(clock.textContent!==text)clock.textContent=text;
+}
 let assetsReady=false;
 let fireworks=[];
 let dangerProgress=0,availableSvendBonus=0;

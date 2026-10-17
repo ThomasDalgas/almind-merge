@@ -1,4 +1,4 @@
-export const RELEASES=[{
+export const RELEASES=[{version:'1.1.1',date:'17. oktober 2026',changes:['Rettet en fejl, hvor en gemt ældre side kunne skjule spillet og tidstællingen.']},{
  version:'1.1.0',date:'17. oktober 2026',changes:[
   'Se din spilletid undervejs. Uret stopper, når du holder pause.',
   'Highscoren viser nu dato, klokkeslæt og registreret spilletid.',
