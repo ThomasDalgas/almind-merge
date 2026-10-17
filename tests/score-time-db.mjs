@@ -1,0 +1,16 @@
+import fs from 'node:fs/promises';import assert from 'node:assert/strict';
+const {PGlite}=await import(process.env.PGLITE_MODULE);const db=new PGlite();
+await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;`);
+for(const f of (await fs.readdir(new URL('../supabase/migrations/',import.meta.url))).sort())await db.exec(await fs.readFile(new URL('../supabase/migrations/'+f,import.meta.url),'utf8'));
+const migration=await fs.readFile(new URL('../supabase/migrations/202610170003_merge_score_time.sql',import.meta.url),'utf8');await db.exec(migration);
+const id='00000000-0000-4000-8000-000000000001';await db.query('insert into auth.users values($1)',[id]);await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated');await db.query("select public.am_claim_name('Thomas')");const ticket=(await db.query('select public.am_start_round() as id')).rows[0].id;
+await db.exec('reset role');await db.query("update public.am_rounds set started_at=now()-interval '1 hour' where id=$1",[ticket]);await db.exec('set role authenticated');
+const save=async(duration,events='[["d",0,0]]',fn='am_checkpoint_round')=>db.query(`select public.${fn}($1,'Thomas',$2,$3)`,[ticket,events,duration]);
+const board=async()=>(await db.query("select * from public.am_leaderboard_v2('all')")).rows;
+await save(5000);let row=(await board())[0];assert.equal(row.duration_ms,5000);assert.equal(row.score,2);assert.equal(row.is_me,true);const stamp=row.achieved_at;
+await save(7000);row=(await board())[0];assert.equal(row.duration_ms,7000);assert.deepEqual(row.achieved_at,stamp,'idle time does not change achievement date');
+await save(6000);assert.equal((await board())[0].duration_ms,7000,'late shorter checkpoint cannot shorten duration');
+await assert.rejects(save(30000000),/Invalid round duration/);await assert.rejects(save(100,'[["d",0,500]]'),/Invalid event order/);
+await save(10000,'[["d",0,0]]','am_submit_round');assert.equal((await board())[0].duration_ms,10000);await save(11000);assert.equal((await board())[0].duration_ms,10000,'finished duration is immutable');
+await db.exec('reset role');await db.query('update public.am_rounds set duration_ms=null where id=$1',[ticket]);await db.exec('set role anon');assert.equal((await board())[0].duration_ms,null,'legacy duration stays unknown');assert.equal((await db.query("select * from public.am_leaderboard('all')")).rows[0].score,2);await assert.rejects(db.query('select * from public.am_rounds'),/permission denied/);
+console.log('PASS active duration persists, idle timestamp stays stable, monotonic and immutable final duration, validation, old scores/client compatibility, anonymous read and private tables');await db.close();

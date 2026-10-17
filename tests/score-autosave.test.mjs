@@ -26,3 +26,7 @@ test('Only fresh actual Game Over uses the event endpoint; restart and stale rec
  await s.start('Niklas');s.event('d',0,0);await s.start('Niklas');await s.flush();assert.equal(f.calls.at(-1)[0],'submit');
  s.event('d',0,0);f.api.ready=false;s.end(.5);f.advance(61000);f.api.ready=true;await createScoreAutosave(f).flush();assert.equal(f.calls.at(-1)[0],'submit');
 });
+test('active duration checkpoints advance even without more scoring events',async()=>{
+ const f=fixture();let seconds=0;f.getDuration=()=>seconds;const s=createScoreAutosave(f);await s.start('Thomas');s.event('d',0,0);await s.flush();assert.equal(f.calls.length,1);
+ seconds=2;f.advance(2000);await s.flush();assert.equal(f.calls.length,2);assert.equal(f.calls.at(-1)[4],2000);await s.flush();assert.equal(f.calls.length,2,'unchanged paused time does not upload again');
+});

@@ -1,0 +1,3 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {createPlayClock,formatPlayTime} from '../dist/play-time.js';
+test('active clock excludes pauses, resumes once and resets for a new round',()=>{let now=0;const c=createPlayClock(()=>now);assert.equal(c.seconds(),0);c.start();now=1500;assert.equal(c.seconds(),1.5);c.pause();now=99999;assert.equal(c.seconds(),1.5);c.pause();c.resume();c.resume();now+=2500;assert.equal(c.seconds(),4);c.start();assert.equal(c.seconds(),0);});
+test('hours minutes seconds format and hour rollover',()=>{assert.equal(formatPlayTime(0),'00:00:00');assert.equal(formatPlayTime(3599.99),'00:59:59');assert.equal(formatPlayTime(3661),'01:01:01');assert.equal(formatPlayTime(null),'00:00:00');});
