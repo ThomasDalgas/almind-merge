@@ -130,7 +130,7 @@ async function tileSound(tier,force=false){
   if(!soundOn&&!force)return;ensureAudio();if(!audioCtx)return;
   const now=audioCtx.currentTime;
   const tile=tiles[tier];
-  const sound=tile.sound||({1:'assets/silas-merge.m4a',2:'assets/niklas-merge.m4a',3:'assets/elias-merge-v2.m4a',6:'assets/tina-merge.m4a',9:'assets/helle-merge.m4a',10:'assets/svend-merge.m4a'}[tier]??null);
+  const sound=tile.sound||({1:'assets/silas-merge.m4a',2:'assets/niklas-merge.m4a',3:'assets/elias-merge-v2.m4a',4:'assets/milas-merge.m4a',5:'assets/malika-merge.m4a',7:'assets/rikke-merge.m4a',8:'assets/david-merge.m4a',6:'assets/tina-merge.m4a',9:'assets/helle-merge.m4a',10:'assets/svend-merge.m4a'}[tier]??null);
   if(tier>=7&&!sound){celebrationSound(tier-6,force);return;}
   if(sound){
     try{

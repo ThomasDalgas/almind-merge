@@ -1,4 +1,4 @@
-export const RELEASES=[{version:'1.1.1',date:'17. oktober 2026',changes:['Rettet en fejl, hvor en gemt ældre side kunne skjule spillet og tidstællingen.']},{
+export const RELEASES=[{version:'1.1.2',date:'17. oktober 2026',changes:['Milas, Malika, Rikke og David har nu deres egne lyde, når de bliver merget. Tryk også på dem i det store figurpreview for at høre dem.']},{version:'1.1.1',date:'17. oktober 2026',changes:['Rettet en fejl, hvor en gemt ældre side kunne skjule spillet og tidstællingen.']},{
  version:'1.1.0',date:'17. oktober 2026',changes:[
   'Se din spilletid undervejs. Uret stopper, når du holder pause.',
   'Highscoren viser nu dato, klokkeslæt og registreret spilletid.',
