@@ -69,16 +69,18 @@ function drawWreck(c,p,index,dir,assets,age,time){
  c.save();c.translate(x,Math.min(p.y+12,y));c.rotate(i+life*5);c.fillStyle=i%2?'#565957':'#272c2e';c.strokeStyle='#b2a393';c.lineWidth=.5;c.beginPath();c.moveTo(-3,-2);c.lineTo(3,-1);c.lineTo(2,2);c.lineTo(-2,1);c.closePath();c.fill();c.stroke();c.restore();}
  flame(c,p.x,p.y+2,time,1);smoke(c,p.x,p.y-6,time,1.2,0,true);
 }
-export function drawBlast(c,x,y,seconds,radius,{direct=false,weapon='shell',miss=false,rock=false}={}){
+export function drawBlast(c,x,y,seconds,radius,{direct=false,weapon='shell',miss=false,rock=false,clarity=1}={}){
  if(miss||seconds<0||seconds>2.8)return;
- const r=radius*(direct?1.5:weapon==='heavy'?1.2:1),t=seconds;
+ const r=radius*(direct?1.5:weapon==='heavy'?1.2:1)*clarity,t=seconds;
  c.save();
  if(t<.32){const size=Math.max(2,r*Math.sin(Math.min(1,t/.22)*Math.PI/2));const g=c.createRadialGradient(x,y,0,x,y,size);g.addColorStop(0,`rgba(255,250,228,${1-t/.34})`);g.addColorStop(.24,'#ffe6a3d0');g.addColorStop(.58,'#f9903470');g.addColorStop(1,'#db521000');c.globalCompositeOperation='screen';c.fillStyle=g;c.fillRect(x-size,y-size,size*2,size*2);c.globalCompositeOperation='source-over';}
+ // A brief contrasting dust rim and incandescent fragments make the exact impact readable on small screens.
+ if(clarity>1&&t<.65){const fade=Math.max(0,1-t/.65),spread=8+r*.7*Math.sqrt(t/.65);c.save();c.globalAlpha=fade*.8;c.strokeStyle='#342821';c.lineWidth=4;c.beginPath();c.ellipse(x,y-2,spread,spread*.42,0,Math.PI,Math.PI*2);c.stroke();c.strokeStyle='#ffe5ad';c.lineWidth=1.6;c.stroke();c.restore();}
  const puff=smokeSprite(direct);
  for(let i=0;i<18;i++){const a=noise(i+18)*Math.PI*2,speed=18+noise(i+7)*r,px=x+Math.cos(a)*speed*t*.55,py=y-Math.abs(Math.sin(a))*speed*t-17*t,size=12+(15+noise(i+12)*23)*Math.sqrt(t);
  c.globalAlpha=Math.max(0,1-t/2.8)*.55;c.drawImage(puff,px-size/2,py-size/2,size,size);}
  c.globalAlpha=1;
  for(let i=0;i<26;i++){const a=Math.PI+noise(i+30)*Math.PI,v=35+noise(i+11)*r*2,px=x+Math.cos(a)*v*t,py=y+Math.sin(a)*v*t+105*t*t;if(py>y+8)continue;
- c.save();c.translate(px,py);c.rotate(i+t*4);c.globalAlpha=Math.max(0,1-t/1.8);c.fillStyle=direct&&i%3===0?'#ffd19a':rock?'#8a8984':'#6b4933';c.fillRect(-1,-1,1.4+noise(i)*3.2,1+noise(i+2)*2);c.restore();}
+ c.save();c.translate(px,py);c.rotate(i+t*4);c.globalAlpha=Math.max(0,1-t/1.8);c.fillStyle=(direct||clarity>1)&&i%3===0?'#ffd19a':rock?'#8a8984':'#6b4933';c.fillRect(-1,-1,1.4+noise(i)*3.2,1+noise(i+2)*2);c.restore();}
  c.restore();
 }

@@ -37,3 +37,20 @@ test('online responses queue during result hold without releasing input',async()
 test('backgrounding pauses the animation clock instead of skipping impacts on return',async()=>{
  const h=harness();h.run("reset('local')");await h.run("$('#fire').onclick()");h.tick(100);h.visibility(true);h.tick(10000);h.visibility(false);assert.equal(h.run('resumePlayback.hidden'),false);h.run('resumeFromBackground()');h.tick(10100);assert.equal(h.run('animation.elapsed'),200);assert.equal(h.get('#fire').disabled,true);
 });
+
+function roomState(version=0,seat=0,ready=true){return {code:'AB12CD34',seed:1234,mode:'standard',host_name:'Anna',guest_name:'Bo',ready,seat,version,shots:Array.from({length:version},()=>({angle:48,power:66,weapon:'shell'}))};}
+test('two clients replay identical shots and only the current seat can shoot',async()=>{
+ const a=harness(),b=harness();
+ for(const [h,seat] of [[a,0],[b,1]])await h.run(`sync(${JSON.stringify(roomState(0,seat))})`);
+ assert.equal(a.get('#fire').disabled,false);assert.equal(b.get('#fire').disabled,true);
+ for(const [h,seat] of [[a,0],[b,1]]){await h.run(`sync(${JSON.stringify(roomState(1,seat))})`);const t=shotTiming(h.run('animation'));h.tick(t.totalMs);}
+ assert.equal(a.run('JSON.stringify(game)'),b.run('JSON.stringify(game)'));
+ assert.equal(a.get('#fire').disabled,true);assert.equal(b.get('#fire').disabled,false);
+ const rejoined=harness();await rejoined.run(`sync(${JSON.stringify(roomState(1,1))})`);
+ assert.equal(rejoined.run('JSON.stringify(game)'),b.run('JSON.stringify(game)'));
+});
+test('waiting lobby retains code, blocks shooting and disappears when guest joins',async()=>{
+ const h=harness(),waiting=JSON.stringify(roomState(0,0,false));await h.run(`sync(${waiting})`);await h.run(`sync(${waiting})`);
+ assert.equal(h.get('#fire').disabled,true);assert.equal(h.run('lobby.hidden'),false);assert.match(h.run('lobby.innerHTML'),/AB12CD34/);assert.match(h.get('#status').textContent,/Venter/);
+ await h.run(`sync(${JSON.stringify(roomState())})`);assert.equal(h.run('lobby.hidden'),true);assert.equal(h.get('#fire').disabled,false);
+});
