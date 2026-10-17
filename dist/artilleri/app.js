@@ -1,10 +1,10 @@
-import {createCombatAudio} from './audio.js?v=terrain-14';
-import {initWeaponPicker} from './weapon-picker.js?v=terrain-14';
-import {shotFrame} from './presentation.js?v=terrain-14';
-import {W,H,newGame,fire,bestShot,weapons} from './rules.js?v=terrain-14';
-import {render} from './render.js?v=terrain-14';
-import {swipeAim,guidanceCharges} from './aim.js?v=terrain-14';
-import {initDisplay} from './display.js?v=terrain-14';
+import {createCombatAudio} from './audio.js?v=camera-15';
+import {initWeaponPicker} from './weapon-picker.js?v=camera-15';
+import {shotFrame} from './presentation.js?v=camera-15';
+import {W,H,newGame,fire,bestShot,weapons} from './rules.js?v=camera-15';
+import {render} from './render.js?v=camera-15';
+import {swipeAim,guidanceCharges} from './aim.js?v=camera-15';
+import {initDisplay} from './display.js?v=camera-15';
 import * as online from './online.js';
 const $=s=>document.querySelector(s),canvas=$('#field'),ctx=canvas.getContext('2d',{alpha:false});const renderScale=Math.min(2,Math.max(1.5,window.devicePixelRatio||1));canvas.width=Math.round(W*renderScale);canvas.height=Math.round(H*renderScale);ctx.setTransform(renderScale,0,0,renderScale,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
 let game=null,kind=null,room=null,animation=null,poll=null,busy=false,lastVersion=-1,guidanceSpent=[0,0],guideUntil=0,guideTimer=null,bannerTimer=null,aiTimer=null,frameId=null,epoch=0,queuedState=null,polling=false;
@@ -42,7 +42,7 @@ function shownGame(){
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function status(s){$('#status').textContent=s;}function onlineStatus(s){$('#online-status').textContent=s;}
 function controls(){const view=shownGame();const can=!!game&&game.winner===null&&!busy&&hiddenAt===null&&(kind!=='online'||(room?.ready&&room.seat===game.turn))&&(kind!=='solo'||game.turn===0);$('#fire').disabled=!can;weaponPicker.sync({can,cash:game?game.players[game.turn].cash:0});for(const id of ['angle','power','weapon'])$('#'+id).disabled=!can;$('#angle-value').textContent=$('#angle').value+'°';$('#power-value').textContent=$('#power').value+'%';$('#aim-toggle').textContent=`Sigt ${$('#angle').value}° · ${$('#power').value}%`;const power=Number($('#power').value);$('#power-value').style.color=power<42?'#64d99b':power<73?'#f4d26a':'#f18772';const rankValue=p=>game?.mode==='greedy'?p.cash:p.score;const leader=game&&rankValue(view.players[0])!==rankValue(view.players[1])?(rankValue(view.players[0])>rankValue(view.players[1])?0:1):null;for(let i=0;i<2;i++)$('#player'+i).classList.toggle('leader',leader===i);for(let i=0;i<2;i++){const p=view?.players[i];$('#player'+i).innerHTML=p?`<div class="pilot-name"><b>${esc(p.name)}</b><span class="rank-tag">${leader===i?'FØRER':leader===null?'LIGE':game.turn===i?'SIGTER':''}</span></div><div class="pilot-score"><strong>${p.score.toLocaleString('da-DK')}</strong><span>POINT</span><span class="pilot-cash">◇ ${p.cash}</span></div><div class="pilot-health" role="meter" aria-label="${esc(p.name)} liv" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p.hp}"><span style="width:${Math.max(0,p.hp)}%;background:${p.hp<30?'#ed8062':i?'#e0aa85':'#8bc9dc'}"></span></div><span class="hp-label">${p.hp} / 100</span>`:'';}$('#round').textContent=game?`RUNDE ${view.round} / ${game.maxRounds}  ·  VIND ${view.wind>0?'→':view.wind<0?'←':'·'} ${Math.abs(view.wind)}`:'';$('#connection').textContent=kind==='online'?'● ONLINE':'● LOKAL';const seat=game?.turn??0,charges=game?guidanceCharges(view.players[seat].score,guidanceSpent[seat]):0;$('#guide').disabled=!can||charges<1||Date.now()<guideUntil;$('#guide').textContent=matchMedia('(any-pointer:coarse) and (orientation:landscape) and (max-height:600px)').matches?(Date.now()<guideUntil?'Bane aktiv':`Bane · ${charges}`):(Date.now()<guideUntil?'Banevisning aktiv':`Banevisning · ${charges}`);display.sync();}
-function draw(){const preview=game&&!animation&&Date.now()<guideUntil&&(kind!=='online'||room?.seat===game.turn)?{angle:Number($('#angle').value),power:Number($('#power').value)}:null;render(ctx,game,{animation,preview,aim:game?{player:game.turn,angle:Number($('#angle').value)}:null,time:performance.now()/1000});}
+function draw(){const preview=game&&!animation&&Date.now()<guideUntil&&(kind!=='online'||room?.seat===game.turn)?{angle:Number($('#angle').value),power:Number($('#power').value)}:null;render(ctx,game,{animation,preview,aim:game?{player:game.turn,angle:Number($('#angle').value)}:null,time:performance.now()/1000,mobile:matchMedia('(any-pointer:coarse)').matches,reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches});}
 function animate(result,done){
  const token=epoch;hideBanner();busy=true;weaponPicker.close();const start=presentationNow();let impacted=false,resultShown=false;
  animation={...result,path:result.hit.path,radius:weapons[result.weapon].radius,...shotFrame(result,0)};sound.begin(result);sound.update(0,animation);controls();

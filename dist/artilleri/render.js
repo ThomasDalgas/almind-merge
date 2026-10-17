@@ -1,6 +1,7 @@
-import {clusterFlight} from './combat-cues.js?v=terrain-14';
-import {drawTank,drawBlast} from './tank-visuals.js?v=terrain-14';
-import {W,H,trace,terrain,materialAt} from './rules.js?v=terrain-14';
+import {shotCamera} from './camera.js?v=camera-15';
+import {clusterFlight} from './combat-cues.js?v=camera-15';
+import {drawTank,drawBlast} from './tank-visuals.js?v=camera-15';
+import {W,H,trace,terrain,materialAt} from './rules.js?v=camera-15';
 const assets={};for(const [key,name] of Object.entries({hull:'tank-hull-v2.webp',cannon:'tank-cannon-v2.webp',cloud:'cloud-bank-v2.webp',backdrop:'mountain-backdrop-v2.webp',pine:'pine-photoreal.png',soil:'soil-texture-v2.webp',rock:'rock-texture-v2.webp'})){const img=new Image();img.src=new URL('./assets/'+name,import.meta.url).href;img.onload=()=>window.dispatchEvent(new Event('artillery-assets-loaded'));assets[key]=img;}
 const ready=name=>assets[name].complete&&assets[name].naturalWidth>0;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -42,9 +43,10 @@ function shell(c,x,y,a,weapon='shell',time=0){
  const glow=c.createRadialGradient(-5,0,1,-5,0,22);glow.addColorStop(0,'#ffe8a0a0');glow.addColorStop(1,'#ff8a2700');c.fillStyle=glow;c.fillRect(-27,-22,44,44);
  c.fillStyle=weapon==='heavy'?'#a3533d':weapon==='cluster'?'#438575':weapon==='bomblet'?'#d2a54e':'#526373';c.strokeStyle=weapon==='cluster'?'#c7f4df':'#ffe2aa';c.lineWidth=1.2;c.beginPath();c.moveTo(12,0);c.quadraticCurveTo(5,-5,-7,-4);c.lineTo(-11,-3);c.lineTo(-11,3);c.lineTo(-7,4);c.quadraticCurveTo(5,5,12,0);c.fill();c.stroke();c.fillStyle=weapon==='heavy'?'#f4d19b':'#b6a18a';c.fillRect(-10,-3,3,6);if(weapon==='cluster'){c.strokeStyle='#d2e8cd';c.lineWidth=.8;for(const sx of [-4,1,6]){c.beginPath();c.moveTo(sx,-3);c.lineTo(sx,3);c.stroke();}}if(weapon==='heavy'){c.fillStyle='#e4bb7c';c.fillRect(-3,-4,3,8);}if(weapon==='bomblet'){c.fillStyle='#494f4d';c.beginPath();c.moveTo(-8,0);c.lineTo(-13,-6);c.lineTo(-11,0);c.lineTo(-13,6);c.closePath();c.fill();}c.fillStyle='#fff3d4';c.beginPath();c.ellipse(7,-1,3,1.2,-.2,0,Math.PI*2);c.fill();c.restore();
 }
-export function render(c,game,{animation=null,preview=null,aim=null,time=0}={}){
+export function render(c,game,{animation=null,preview=null,aim=null,time=0,mobile=false,reducedMotion=false}={}){
  const wind=animation?animation.windBefore:game?.wind||0;sky(c,wind,time);
  if(!game){c.fillStyle='#f0f0e4';c.textAlign='center';c.font='bold 42px system-ui';c.fillText('Klar til kamp?',W/2,235);c.font='20px system-ui';c.fillText('Vælg modstander for at begynde',W/2,275);return;}
+ const camera=shotCamera(animation,{mobile,reducedMotion});c.save();c.translate(W/2,H/2);c.scale(camera.zoom,camera.zoom);c.translate(-camera.x,-camera.y);
  const flight=animation&&animation.index<animation.path.length,impact=animation&&!flight,groundData=flight?animation.groundBefore:impact?animation.impactGround:game.ground,round=animation?animation.beforeRound:game.round;
  ground(c,groundData,game.seed,round);landscapeDetails(c,groundData,game.seed,round,time,wind);windFlag(c,groundData,wind,time);
  for(let i=0;i<2;i++){
@@ -62,4 +64,5 @@ export function render(c,game,{animation=null,preview=null,aim=null,time=0}={}){
    if(animation.weapon==='cluster'&&!hit.miss){drawBlast(c,hit.x-34,hit.y,seconds-.13,27,{});drawBlast(c,hit.x+34,hit.y,seconds-.2,27,{});}
   }
  }else if(preview){const t=trace(game,game.turn,preview.angle,preview.power);c.strokeStyle='#d5e4d388';c.lineWidth=1.6;c.setLineDash([2,9]);line(c,t.path.map(p=>p.slice(0,2)));c.setLineDash([]);}
+ c.restore();
 }
