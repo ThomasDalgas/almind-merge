@@ -1,3 +1,4 @@
+import {roundLogText} from './round-log.js?v=1.1.4';
 import {createAdminApi} from './api.js?v=admin-v1';
 const $=s=>document.querySelector(s),api=createAdminApi(),fmt=new Intl.NumberFormat('da-DK');
 const date=value=>value?new Date(value).toLocaleString('da-DK',{dateStyle:'short',timeStyle:'short'}):'—';
@@ -50,7 +51,7 @@ async function selectPlayer(id){
 function historyItem(title,text){const row=document.createElement('div');row.className='history-item';const a=document.createElement('strong'),b=document.createElement('span');a.textContent=title;b.textContent=text;row.append(a,b);return row;}
 function renderDetail(){
  const {player:p}=selected;$('#empty-detail').hidden=true;$('#detail').hidden=false;$('#player-title').textContent=p.nickname;$('#player-state').textContent=p.blocked?'Slettet':'Aktiv';$('#player-state').className='badge'+(p.blocked?' archived':'');$('#player-id').textContent='Profil-ID: '+p.id;$('#best').textContent=fmt.format(selected.best);$('#devices').textContent=selected.devices;$('#nickname').value=p.nickname;$('#rename-form').hidden=false;$('#reset-code').disabled=p.blocked||!p.name_claimed;$('#archive').hidden=p.blocked;$('#restore').hidden=!p.blocked;$('#archive-title').textContent=p.blocked?'Gendan spilleren':'Fjern fra spillet';$('#archive-help').textContent=p.blocked?'Gendan profilen med samme navn og bevarede runder. Navnet skal være ledigt; ret det først, hvis det er optaget. Tidligere særskilt skjulte runder forbliver skjult.':'Profilen og dens rekorder skjules fra spillet. Spillerkoden slettes. Du kan gendanne profilen under “Slettede profiler”.';
- $('#rounds').replaceChildren(...selected.rounds.map(r=>historyItem(`${fmt.format(r.score||0)} point${r.hidden?' · skjult':''}`,date(r.started_at)+(r.finished_at?' · afsluttet':' · ikke afsluttet'))));
+ $('#rounds').replaceChildren(...selected.rounds.map(r=>historyItem(`${fmt.format(r.score||0)} point${r.hidden?' · skjult':''}`,date(r.started_at)+' · '+roundLogText(r))));
  if(!selected.rounds.length)$('#rounds').textContent='Ingen runder endnu.';
  $('#history').replaceChildren(...selected.history.map(h=>historyItem(actionNames[h.action]||h.action,date(h.created_at)+(h.action==='rename'?` · ${h.before_state.nickname} → ${h.after_state.nickname}`:''))));
  if(!selected.history.length)$('#history').textContent='Ingen ændringer registreret i administrationen endnu.';

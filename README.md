@@ -61,3 +61,10 @@ Artilleri-opdatering: landscape-visning låser siden under kampen; to fingre ell
 Update `dist/releases.js` with each relevant release: version, Danish date and a few short player-facing changes. Keep previous releases below the latest. Bump the release module and changed asset query versions in `dist/index.html` (and dependent imports). Keep the initial version button text aligned. Avoid implementation details in the notes.
 
 Merge score dates use Europe/Copenhagen; `duration_ms` stores active round duration (excluding pauses). Existing rounds without this field show unknown duration. Apply `supabase/migrations/202610170003_merge_score_time.sql` to enable duration persistence and `am_leaderboard_v2`; old clients remain compatible.
+
+### Kompakt rundelog (1.1.4)
+Kør `supabase/migrations/202610180001_merge_round_log.sql` i Supabase SQL Editor. Migreringen kan køres igen og er kompatibel med klienter, der allerede spiller. Den opretter ingen ny tabel og bevarer rettighederne på `am_rounds`.
+
+`round_log` indeholder kun serverberegnede antal drop, merges (inklusive Svend-par), Svend-par, Ryst og Fjern samt klientens version og afslutningsårsag. Ingen hændelsesrækker eller bevægelser gemmes. Eksisterende afsluttede runder får ikke opdigtede tal. Loggen vises kun gennem den eksisterende adminbeskyttede spilleroversigt. Gamle klienters afslutning kan stå som ukendt; en ikke afsluttet runde er ikke nødvendigvis aktiv.
+
+Ved nye releases skal også `getVersion` i leaderboard.js opdateres; versionen fastholdes i hver rundes lokale journal, så en senere offlineupload beholder sin oprindelige version. Nye klienter bruger ét log-RPC pr. autosave. Mangler migreringen, falder de tilbage til den gamle gemning resten af sidevisningen.

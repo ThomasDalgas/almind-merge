@@ -1,6 +1,6 @@
 import {formatPlayTime} from './play-time.js?v=1.1.0';
 import {SCORE_CONFIG} from './score-config.js';
-import {createScoreAutosave} from './score-autosave.js?v=1.1.0';
+import {createScoreAutosave} from './score-autosave.js?v=1.1.4';
 const $=s=>document.querySelector(s),fmt=new Intl.NumberFormat('da-DK');
 const storage={get(k){try{return localStorage.getItem(k);}catch{return null;}},set(k,v){try{localStorage.setItem(k,v);}catch{}},remove(k){try{localStorage.removeItem(k);}catch{}},keys(){try{return Object.keys(localStorage);}catch{return [];}}};
 export function validNickname(value){return /^[\p{L}\p{N} _-]{2,20}$/u.test(value.trim());}
@@ -27,11 +27,18 @@ export function createScoreApi(config,{fetcher=fetch,store=storage}={}){
   return sessionRequest;
  }
  async function rpc(name,args={},auth=true){if(!ready)throw new Error('Highscorelisten er ikke tilsluttet endnu');const s=auth?await getSession():null;return request(`/rest/v1/rpc/${name}`,args,s?.access_token);}
+ let logAvailable=true;
+ async function save(kind,id,nickname,events,duration,meta){
+  const args={p_round:id,p_nickname:nickname,p_events:events,p_duration:duration};
+  if(meta&&logAvailable){try{return await rpc('am_save_round_logged',{...args,p_kind:kind,p_version:meta.version,p_game_over:meta.gameOver});}catch(error){if(error.code!=='PGRST202')throw error;logAvailable=false;}}
+  if(kind==='gameover')return gameOver(id,nickname,events,duration);
+  return rpc(kind==='checkpoint'?'am_checkpoint_round':'am_submit_round',args);
+ }
  async function gameOver(id,nickname,events,duration){
   const args={p_round:id,p_nickname:nickname,p_events:events,p_duration:duration};
   try{return await rpc('am_game_over',args);}catch(error){if(error.code!=='PGRST202')throw error;return rpc('am_submit_round',args);}
  }
- return {ready,gameOver,gameRules:()=>rpc('am_game_rules',{},false),createCode:()=>rpc('am_create_player_code'),useCode:(name,code)=>rpc('am_use_player_code',{p_nickname:name,p_code:code}),profile:()=>rpc('am_player_profile'),claim:name=>rpc('am_claim_name',{p_nickname:name}),live:(id,nickname,score,tier,active)=>rpc('am_live_update',{p_round:id,p_nickname:nickname,p_score:score,p_max_tier:tier,p_active:active}),liveList:()=>rpc('am_live_snapshot',{},false),start:()=>rpc('am_start_round'),checkpoint:(id,nickname,events,duration)=>rpc('am_checkpoint_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),submit:(id,nickname,events,duration)=>rpc('am_submit_round',{p_round:id,p_nickname:nickname,p_events:events,p_duration:duration}),list:async scope=>{
+ return {ready,gameOver:(...args)=>save('gameover',...args),gameRules:()=>rpc('am_game_rules',{},false),createCode:()=>rpc('am_create_player_code'),useCode:(name,code)=>rpc('am_use_player_code',{p_nickname:name,p_code:code}),profile:()=>rpc('am_player_profile'),claim:name=>rpc('am_claim_name',{p_nickname:name}),live:(id,nickname,score,tier,active)=>rpc('am_live_update',{p_round:id,p_nickname:nickname,p_score:score,p_max_tier:tier,p_active:active}),liveList:()=>rpc('am_live_snapshot',{},false),start:()=>rpc('am_start_round'),checkpoint:(...args)=>save('checkpoint',...args),submit:(...args)=>save('submit',...args),list:async scope=>{
   // Public browsing doesn't create an account; use a stored identity for your rank.
   let hasSession=Boolean(session);try{hasSession ||= Boolean(JSON.parse(store.get(sessionKey))?.refresh_token);}catch{}
   try{return await rpc('am_leaderboard_v2',{p_scope:scope},hasSession);}catch(error){if(error.code!=='PGRST202')throw error;return rpc('am_leaderboard',{p_scope:scope},hasSession);}
@@ -61,7 +68,7 @@ export async function refreshLeaderboard(){
 }
 let roundTimeSource=null;
 export const setRoundTimeSource=source=>{roundTimeSource=source;};
-const autosave=createScoreAutosave({api,store:storage,getDuration:()=>roundTimeSource?.(),onStatus:message,onSaved:()=>{if(!document.body.classList.contains('playing'))refreshLeaderboard();}});
+const autosave=createScoreAutosave({getVersion:()=>'1.1.4',api,store:storage,getDuration:()=>roundTimeSource?.(),onStatus:message,onSaved:()=>{if(!document.body.classList.contains('playing'))refreshLeaderboard();}});
 export function scoreRoundStart(){
  autosave.start(nickname);$('#score-result-open').hidden=true;message('Din rekord gemmes automatisk undervejs.');
 }

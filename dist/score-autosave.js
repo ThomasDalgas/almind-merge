@@ -1,5 +1,5 @@
 // Persist each round independently so tabs and unfinished uploads cannot overwrite each other.
-export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},getDuration=()=>null,now=Date.now}){
+export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},getDuration=()=>null,getVersion=()=>null,now=Date.now}){
  const prefix='almind-score-pending:',jobs=new Map();let current=null,flushing=false;
  const persist=item=>{const {ticketPromise,...saved}=item;store.set(prefix+item.key,JSON.stringify(saved));};
  for(const key of store.keys())if(key.startsWith(prefix)){
@@ -7,7 +7,7 @@ export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},ge
  }
  function start(nickname){
   if(current){if(current.events.length){current.final=true;persist(current);}else jobs.delete(current.key);}
-  const item={key:crypto.randomUUID(),nickname,events:[],duration:1,final:false,ticket:null};
+  const item={key:crypto.randomUUID(),nickname,version:getVersion(),events:[],duration:1,final:false,ticket:null};
   current=item;jobs.set(item.key,item);
   const ticket=api.start().then(id=>{item.ticket={id,readyAt:now()};if(item.events.length)persist(item);return {id,readyAt:performance.now()};}).catch(()=>null);
   item.ticketPromise=ticket;
@@ -35,7 +35,7 @@ export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},ge
     if(item.duration>now()-item.ticket.readyAt+1000)continue;
     const count=item.events.length,final=item.final,duration=item.duration,events=item.events.map(e=>[...e]);
     const save=final?(item.gameOverAt&&now()-item.gameOverAt<60000&&api.gameOver?api.gameOver:api.submit):api.checkpoint;
-    const score=await save(item.ticket.id,item.nickname,events,duration);
+    const score=await save(item.ticket.id,item.nickname,events,duration,{version:item.version??null,gameOver:Boolean(item.gameOverAt)});
     item.savedCount=count;item.savedFinal=final;item.savedDuration=duration;
     onStatus(`Din score på ${new Intl.NumberFormat('da-DK').format(score)} er gemt!`);
     if(item.events.length===count&&item.final===final&&item.duration===duration){

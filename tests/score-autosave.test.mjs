@@ -30,3 +30,7 @@ test('active duration checkpoints advance even without more scoring events',asyn
  const f=fixture();let seconds=0;f.getDuration=()=>seconds;const s=createScoreAutosave(f);await s.start('Thomas');s.event('d',0,0);await s.flush();assert.equal(f.calls.length,1);
  seconds=2;f.advance(2000);await s.flush();assert.equal(f.calls.length,2);assert.equal(f.calls.at(-1)[4],2000);await s.flush();assert.equal(f.calls.length,2,'unchanged paused time does not upload again');
 });
+
+test('Recovered log retains original version and actual Game Over even after notice expires',async()=>{
+ const f=fixture();f.getVersion=()=> '1.1.4';const s=createScoreAutosave(f);await s.start('Thomas');s.event('d',0,0);f.api.ready=false;s.end(.5);f.advance(61000);f.api.ready=true;f.getVersion=()=> '2.0.0';await createScoreAutosave(f).flush();assert.deepEqual(f.calls.at(-1)[5],{version:'1.1.4',gameOver:true});
+});
