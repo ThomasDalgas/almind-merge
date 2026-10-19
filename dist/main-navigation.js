@@ -1,0 +1,2 @@
+import {flushScore} from './leaderboard.js?v=1.1.4';
+for(const link of document.querySelectorAll('.main-home'))link.addEventListener('click',async e=>{if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;e.preventDefault();if(document.body.classList.contains('playing'))document.getElementById('pause').click();await Promise.race([Promise.resolve().then(()=>flushScore()).catch(()=>{}),new Promise(r=>setTimeout(r,1200))]);location.assign('/')});

@@ -464,3 +464,9 @@ body.touch-device.started .round-clock{position:absolute;top:5px;right:8px;margi
 body:not(.started) .left-rail{display:block;order:1;padding:0;margin-top:20px;width:100%;min-width:0}
 body:not(.started) .left-rail .score-card,body:not(.started) .left-rail .next-card{display:none}
 body:not(.started) .live-panel{margin:0;padding:12px}
+
+/* Main chooser navigation stays visible while touch play hides the usual header. */
+.main-home{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;border-radius:12px;background:#fff8df;color:#143f50;font-size:14px;font-weight:750;text-decoration:none;white-space:nowrap}
+#main-game-nav{display:none}
+body.touch-device.playing #main-game-nav{display:flex;position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:120;justify-content:center;height:48px}
+body.touch-device.playing main{--game-space:calc(100dvh - max(6px,env(safe-area-inset-top)) - max(10px,env(safe-area-inset-bottom)) - 48px);padding-top:calc(max(6px,env(safe-area-inset-top)) + 48px)}

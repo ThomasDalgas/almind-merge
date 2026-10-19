@@ -1,6 +1,6 @@
 # Almind Games hosting
 
-`dist/` is the original game and remains unchanged. `scripts/build-site.mjs` copies it to both the published root (for compatibility assets/admin/Artilleri) and `/merge/`, then overlays `site/` to supply the new chooser and `/merge-3d-test/`. GitHub Pages publishes `.site-build/`.
+`dist/` contains the original game. The only gameplay-page changes for the shared hub are navigation links, their styling and a small navigation module; game rules and scoring remain unchanged. `scripts/build-site.mjs` copies it to both the published root (for compatibility assets/admin/Artilleri) and `/merge/`, then overlays `site/` to supply the new chooser and `/merge-3d-test/`. GitHub Pages publishes `.site-build/`.
 
 Run `npm test && node scripts/build-site.mjs`, then serve `.site-build/` with a local HTTP server. No dependencies are required for the site.
 
@@ -19,3 +19,7 @@ Checks: `npm test`; `PGLITE_MODULE=/path/to/pglite/dist/index.js node tests/merg
 From the private 3D repository, run `python3 tools/export_web.py --site /path/to/almind-games-site`. It stages a separate Godot project with 1024px texture limits, exports without threads, compresses the pack into chunks below GitHub's file limit, and copies the web runtime into this repo. Native assets are unchanged. Review and commit the updated web files, then push main to deploy.
 
 The web runtime needs WebGL2, WebAssembly and gzip DecompressionStream (current Safari/Chrome/Firefox). The test download is large; mobile memory and frame rate still require real-device testing.
+
+## Navigation and settings
+
+Both Merge games offer a visible return to the chooser. Leaving pauses input and attempts score upload, with durable queues retained if the network is unavailable. The original game also has a dedicated touch-play navigation row. The 3D workshop and camera-button panel have been removed; camera gestures remain. 3D sound, touch mode, sensitivity and vertical inversion persist synchronously in browser storage per profile and browser, with native ConfigFile storage as the fallback. These device preferences are not synced between devices.
