@@ -23,3 +23,11 @@ The web runtime needs WebGL2, WebAssembly and gzip DecompressionStream (current 
 ## Navigation and settings
 
 Both Merge games offer a visible return to the chooser. Leaving pauses input and attempts score upload, with durable queues retained if the network is unavailable. The original game also has a dedicated touch-play navigation row. The 3D workshop and camera-button panel have been removed; camera gestures remain. 3D sound, touch mode, sensitivity and vertical inversion persist synchronously in browser storage per profile and browser, with native ConfigFile storage as the fallback. These device preferences are not synced between devices.
+
+## Profile settings and paired leaderboards (19 October 2026)
+
+The home page shows the existing original leaderboard (`am_leaderboard_v2`) beside the independent 3D leaderboard; below 760px these stack. Each has its own scope and refresh controls. Original game files and score storage are unchanged by this release.
+
+Web 3D settings now use `am3d_settings` and `am3d_preferences`, installed by `202610190002_merge3d_preferences.sql`. The RPC resolves the linked player server-side, rejects a mismatched profile, validates four allowed fields, and exposes no direct table access. Old local settings seed the profile only if no row exists. Edits queue locally as field patches, debounce for 500ms, retry every 15 seconds/on reconnect, and flush on hide/leave. Settings are loaded before starting Godot; already-running games are not changed remotely. Guests remain local. The native iPhone build has no shared web profile integration yet.
+
+Verification: unit tests cover separate device stores, offline/reload, stale seed and in-flight edits; `tests/merge3d-preferences-db.mjs` checks linked devices, input validation, profile isolation and database permissions in PGlite.

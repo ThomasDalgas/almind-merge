@@ -1,4 +1,4 @@
-import {createProfileClient,store} from './profile.js?v=3d-scores-1';
+import {createProfileClient,store} from './profile.js?v=profile-sync-1';
 export let currentProfile=null;
 const api=createProfileClient(),$=id=>document.getElementById(id);
 function accept(p){currentProfile=p?.claimed?p:null;if(currentProfile)store.set('almind-score-nickname',p.nickname);$('profile-status').textContent=currentProfile?`Du spiller som ${p.nickname}. Samme profil som i Almind-Merge.`:'Vælg et nyt navn, eller forbind din eksisterende profil med en spillerkode.';$('show-create').hidden=!!currentProfile;$('make-code').hidden=!currentProfile;window.dispatchEvent(new CustomEvent('almind-profile-ready',{detail:currentProfile}));}
