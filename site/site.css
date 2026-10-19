@@ -2,3 +2,5 @@
 .board-list{list-style:none;padding:0}.board-list li{display:flex;justify-content:space-between;gap:16px;padding:14px 10px;border-bottom:1px solid #bfb9a4}.board-list .is-me{background:#fff8e5;border-radius:10px}#sync-status{position:fixed;bottom:max(8px,env(safe-area-inset-bottom));left:10px;z-index:4;max-width:min(420px,65vw);background:#fff7e6e6;color:#413c30;padding:6px 10px;border-radius:8px;font-size:12px;pointer-events:none;display:none}body.playing #sync-status{display:block}
 
 .scoreboards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}.scoreboards .profile{margin:0;min-width:0}.board-list span{overflow-wrap:anywhere}.board-list strong{white-space:nowrap}.scoreboards .own-record{min-height:52px}@media(max-width:760px){.scoreboards{grid-template-columns:1fr}.scoreboards .own-record{min-height:0}}
+
+.art.three img{width:94%;height:94%}.launch-logo{width:300px;max-width:100%}.loadbox img{width:360px;max-width:100%}@media(max-width:650px){.launch-logo{width:280px}}
