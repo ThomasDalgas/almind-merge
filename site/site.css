@@ -7,7 +7,7 @@
 
 /* Keep the entire Godot viewport clear of the status bar and camera cutout. */
 :root{--safe-top:env(safe-area-inset-top,0px);--safe-right:env(safe-area-inset-right,0px);--safe-bottom:env(safe-area-inset-bottom,0px);--safe-left:env(safe-area-inset-left,0px)}
-.shell{padding-top:max(28px,var(--safe-top));padding-left:max(clamp(18px,4vw,56px),var(--safe-left));padding-right:max(clamp(18px,4vw,56px),var(--safe-right))}
+.shell{padding-top:calc(var(--safe-top) + 28px);padding-left:max(clamp(18px,4vw,56px),var(--safe-left));padding-right:max(clamp(18px,4vw,56px),var(--safe-right))}
 body.playing{position:fixed;inset:0;background:#e7e9da;overscroll-behavior:none}
 #canvas{inset:auto;top:calc(var(--app-top,0px) + var(--safe-top));left:calc(var(--app-left,0px) + var(--safe-left));width:calc(var(--app-width,100vw) - var(--safe-left) - var(--safe-right))!important;height:calc(var(--app-height,100dvh) - var(--safe-top) - var(--safe-bottom))!important}
 #sync-status{left:calc(var(--app-left,0px) + var(--safe-left) + 10px);bottom:calc(100% - var(--app-top,0px) - var(--app-height,100dvh) + var(--safe-bottom) + 8px);max-width:min(420px,60vw)}

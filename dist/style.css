@@ -479,3 +479,9 @@ body.touch-device::before{content:"";position:fixed;top:0;left:0;right:0;height:
 body.touch-device.playing{top:var(--app-top,0px);left:var(--app-left,0px);right:auto;bottom:auto;width:var(--app-width,100vw);height:var(--app-height,100dvh)}
 body.touch-device.playing main{height:var(--app-height,100dvh);--game-space:calc(var(--app-height,100dvh) - max(6px,var(--safe-top)) - max(10px,var(--safe-bottom)) - 48px);padding-top:calc(max(6px,var(--safe-top)) + 48px);padding-left:max(8px,var(--safe-left));padding-right:max(8px,var(--safe-right));padding-bottom:max(10px,var(--safe-bottom))}
 .rotate-screen{padding-top:max(24px,var(--safe-top))}
+
+/* A single surface continues behind iPhone's system areas, without colour bands. */
+body.touch-device{background:var(--paper)}
+body.touch-device #main-game-nav,body.touch-device.playing #main-game-nav{top:calc(var(--app-top,0px) + var(--safe-top) + 12px)}
+body.touch-device:not(.playing){padding-top:calc(var(--safe-top) + 68px)}
+body.touch-device.playing main{--game-space:calc(var(--app-height,100dvh) - max(6px,var(--safe-top)) - max(10px,var(--safe-bottom)) - 60px);padding-top:calc(max(6px,var(--safe-top)) + 60px)}
