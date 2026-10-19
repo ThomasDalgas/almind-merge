@@ -8,7 +8,11 @@ Run `npm test && node scripts/build-site.mjs`, then serve `.site-build/` with a 
 
 `site/profile.js` reuses the original `almind-score-session:<Supabase URL>` identity, auth refresh lock, and `am_player_profile`, `am_claim_name`, `am_use_player_code`, and `am_create_player_code` RPCs. Visiting the site does not create accounts. New identities are created only after an explicit profile action. No privileged key or database migration is needed. The public client configuration remains `dist/score-config.js`.
 
-3D test scores are saved per profile ID in localStorage under `almind-merge-3d-test-best:<id>`. They are not sent to the original 11-tier score validator. Adding a shared 3D leaderboard requires its own round validation and storage.
+3D scores now use migration `202610190001_merge3d_scores.sql`, applied to the existing Supabase project on 2026-10-19. `am3d_rounds` is separate from original rounds; authenticated writes resolve `am_player_id()` and verify the captured profile and creating device. Its server validator recomputes all 13 tiers, Svend bonus, drop timing, inventory and power usage from an append-only event journal. This is plausibility validation, not a physics replay or cheat-proof verification. Offline rounds do not have a trusted server start timestamp.
+
+The public `am3d_leaderboard` shows all-time/week top 10 plus own rank. Scores are checkpointed every 15 seconds, on backgrounding, restart and Game Over. Pending rounds use independent `almind3d-round:<uuid>` keys, survive reload and retry on reconnect. A changed profile cannot receive another profile's queued round. Previously saved unvalidated local-only records are not automatically uploaded. Guest games and workshop events are excluded; valid points before entering practice remain eligible. The native iPhone app has not yet been connected to profile login; cross-device scores currently apply to the web version.
+
+Checks: `npm test`; `PGLITE_MODULE=/path/to/pglite/dist/index.js node tests/merge3d-db.mjs`. Original `dist/` remains untouched.
 
 ## Update the 3D test
 
