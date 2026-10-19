@@ -470,3 +470,12 @@ body:not(.started) .live-panel{margin:0;padding:12px}
 #main-game-nav{display:none}
 body.touch-device.playing #main-game-nav{display:flex;position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:120;justify-content:center;height:48px}
 body.touch-device.playing main{--game-space:calc(100dvh - max(6px,env(safe-area-inset-top)) - max(10px,env(safe-area-inset-bottom)) - 48px);padding-top:calc(max(6px,env(safe-area-inset-top)) + 48px)}
+
+/* iPhone safe area and Safari's visible viewport, including rotation. */
+:root{--safe-top:env(safe-area-inset-top,0px);--safe-right:env(safe-area-inset-right,0px);--safe-bottom:env(safe-area-inset-bottom,0px);--safe-left:env(safe-area-inset-left,0px)}
+body.touch-device:not(.playing){padding-top:calc(var(--safe-top) + 56px);padding-left:var(--safe-left);padding-right:var(--safe-right)}
+body.touch-device #main-game-nav,body.touch-device.playing #main-game-nav{display:flex;position:fixed;top:calc(var(--app-top,0px) + var(--safe-top));left:var(--safe-left);right:var(--safe-right);height:48px;justify-content:center;z-index:120;background:var(--paper)}
+body.touch-device::before{content:"";position:fixed;top:0;left:0;right:0;height:calc(var(--app-top,0px) + var(--safe-top));background:var(--paper);z-index:121;pointer-events:none}
+body.touch-device.playing{top:var(--app-top,0px);left:var(--app-left,0px);right:auto;bottom:auto;width:var(--app-width,100vw);height:var(--app-height,100dvh)}
+body.touch-device.playing main{height:var(--app-height,100dvh);--game-space:calc(var(--app-height,100dvh) - max(6px,var(--safe-top)) - max(10px,var(--safe-bottom)) - 48px);padding-top:calc(max(6px,var(--safe-top)) + 48px);padding-left:max(8px,var(--safe-left));padding-right:max(8px,var(--safe-right));padding-bottom:max(10px,var(--safe-bottom))}
+.rotate-screen{padding-top:max(24px,var(--safe-top))}
