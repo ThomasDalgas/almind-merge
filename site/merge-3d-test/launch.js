@@ -1,3 +1,4 @@
+import {installTouchInputGuard} from './touch-input.js?v=touch-relative-1';
 import {currentProfile,profileReady} from '/profile-ui.js?v=profile-sync-1';
 import {store,createProfileClient} from '/profile.js?v=profile-sync-1';
 import {createScoreJournal} from './scores.js?v=profile-sync-1';
@@ -8,6 +9,7 @@ function update(){if(started)return;$('start').disabled=false;$('start').textCon
 await profileReady;update();window.addEventListener('almind-profile-ready',update);
 $('start').onclick=async()=>{if(started)return;started=true;$('start').disabled=true;$('loading').hidden=false;
  const key=recordKey();
+ installTouchInputGuard(window);
  const api=createProfileClient();
  const preferences=createSettingsStore(localStorage,currentProfile?.id||'guest',{api,onStatus:text=>{$('sync-status').textContent=text}});
  await preferences.init();
