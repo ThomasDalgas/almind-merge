@@ -58,7 +58,7 @@ Det nye HTML5-artillerispil findes på https://almindgames.funken.dk/artilleri/ 
 Artilleri-opdatering: landscape-visning låser siden under kampen; to fingre eller touchpad-rul styrer vinkel og kraft, tap/klik skyder. Sigtelinje optjenes hver 300 point. Vindflag og fotorealistiske træer er tilføjet.
 
 ### Almind-Merge versions and player-facing news
-Update `dist/releases.js` with each relevant release: version, Danish date and a few short player-facing changes. Keep previous releases below the latest. Bump the release module and changed asset query versions in `dist/index.html` (and dependent imports). Keep the initial version button text aligned. Avoid implementation details in the notes.
+Every time a change to the original Almind-Merge is published, bump the version and add a new entry to `dist/releases.js` in the same release, with the Danish date and a short description for players. Keep previous releases below the latest. Bump the release module and changed asset query versions in `dist/index.html` (and dependent imports). Keep the initial version button text aligned. Avoid implementation details in the notes.
 
 Merge score dates use Europe/Copenhagen; `duration_ms` stores active round duration (excluding pauses). Existing rounds without this field show unknown duration. Apply `supabase/migrations/202610170003_merge_score_time.sql` to enable duration persistence and `am_leaderboard_v2`; old clients remain compatible.
 
