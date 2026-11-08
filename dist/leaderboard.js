@@ -68,7 +68,7 @@ export async function refreshLeaderboard(){
 }
 let roundTimeSource=null;
 export const setRoundTimeSource=source=>{roundTimeSource=source;};
-const autosave=createScoreAutosave({getVersion:()=>'1.2.0',api,store:storage,getDuration:()=>roundTimeSource?.(),onStatus:message,onSaved:()=>{if(!document.body.classList.contains('playing'))refreshLeaderboard();}});
+const autosave=createScoreAutosave({getVersion:()=>'1.2.1',api,store:storage,getDuration:()=>roundTimeSource?.(),onStatus:message,onSaved:()=>{if(!document.body.classList.contains('playing'))refreshLeaderboard();}});
 export const scoreSnapshot=()=>autosave.snapshot();
 export const restoreScore=item=>autosave.restore(item);
 export function scoreRoundStart(){

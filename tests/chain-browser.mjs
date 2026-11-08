@@ -21,7 +21,7 @@ try{
   window.paintSamples=[];
   const fill=CanvasRenderingContext2D.prototype.fillText;
   CanvasRenderingContext2D.prototype.fillText=function(text,x,y,...rest){
-   if(this.canvas.id==='game'&&(/^Kæde|^\+\d+/.test(text)))window.paintSamples.push({text,x,y,alpha:this.globalAlpha,color:this.fillStyle});
+   if(this.canvas.id==='game'&&(/^Bonus|^\+\d+/.test(text)))window.paintSamples.push({text,x,y,alpha:this.globalAlpha,color:this.fillStyle});
    return fill.call(this,text,x,y,...rest);
   };
  });
@@ -47,14 +47,14 @@ try{
  });
  assert.equal(baseline,24,'five drops worth 16, plus two independent merges at 4 each');
  await p.waitForFunction(()=>paintSamples.some(v=>v.text==='+4'));
- assert.ok(!(await p.evaluate(()=>paintSamples.some(v=>v.text.startsWith('Kæde')))),'two simultaneous separate merges get no multiplier');
+ assert.ok(!(await p.evaluate(()=>paintSamples.some(v=>v.text.startsWith('Bonus')))),'two simultaneous separate merges get no multiplier');
  const merged=await p.evaluate(()=>{
   const t=__mergeTest;const pair=Matter.Composite.allBodies(t.engine.world).filter(b=>b.plugin.tier===1);
   if(pair.length!==2)throw Error('Expected two 4s');t.position(pair[0],215,320);t.position(pair[1],224,320);
   t.step(1/60);return t.state.round.score;
  });
  assert.equal(merged,40,'two active first links meet: longest + one, so 8 × 2');
- await p.waitForFunction(()=>paintSamples.some(v=>v.text==='Kæde ×2 · +16'));
+ await p.waitForFunction(()=>paintSamples.some(v=>v.text==='Bonus ×2 · +16'));
  await p.evaluate(()=>__mergeTest.pause());
  const stored=await p.evaluate(()=>JSON.parse(localStorage.getItem('almind-merge-round-v1:Kædetest')));
  assert.equal(stored.round.score,40);await p.close();
@@ -67,8 +67,8 @@ try{
   t.position(pair[0],215,320);t.position(pair[1],225,320);t.step(1/60);return t.state.round.score;
  });
  assert.equal(continued,88,'restored 8 keeps its second link: 16 × 3');
- await p.waitForFunction(()=>paintSamples.some(v=>v.text==='Kæde ×3 · +48'&&v.alpha<.9));
- const samples=await p.evaluate(()=>paintSamples.filter(v=>v.text==='Kæde ×3 · +48'));
+ await p.waitForFunction(()=>paintSamples.some(v=>v.text==='Bonus ×3 · +48'&&v.alpha<.9));
+ const samples=await p.evaluate(()=>paintSamples.filter(v=>v.text==='Bonus ×3 · +48'));
  assert.ok(samples[0].y>samples.at(-1).y,'bonus visibly rises as it fades');
  assert.ok(Math.abs(samples[0].x-220)<30&&Math.abs(samples[0].y-320)<65,'bonus starts near the merging bodies');
  await p.evaluate(()=>{const t=__mergeTest;t.advance(2.1);const tile=t.state.bodies.find(b=>b.tier===3);t.spawn(3,tile.x+5,tile.y);t.step(1/60);});

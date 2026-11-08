@@ -4,7 +4,7 @@ import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.2.0';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.2.1';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,chainMultiplier,advanceDanger} from './rules.js?v=1.2.0';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
@@ -223,7 +223,7 @@ function burst(x,y,tier,celebrate=false){
 }
 function scoreFloat(x,y,value,multiplier=1){
  const bonus=multiplier>1;
- floats.push({x,y,text:bonus?`Kæde ×${multiplier} · +${numberFormat.format(value)}`:`+${value}`,bonus,life:bonus?1.25:.8});
+ floats.push({x,y,text:bonus?`Bonus ×${multiplier} · +${numberFormat.format(value)}`:`+${value}`,bonus,life:bonus?1.25:.8});
 }
 Events.on(engine,'collisionStart',({pairs})=>{
   if(mode!=='playing')return;

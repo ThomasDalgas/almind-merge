@@ -1,4 +1,6 @@
 export const RELEASES=[{
+ version:'1.2.1',date:'8. november 2026',changes:['Pointteksten over brikkerne viser nu fx “Bonus ×2 · +16”.']
+},{
  version:'1.2.0',date:'8. november 2026',changes:[
   'Merger en ny brik videre inden for to sekunders spilletid, får du dobbelt point for det led. Fortsætter kæden, stiger bonussen til ×3, ×4 og højst ×5.',
   'Guldteksten over brikkerne viser hele beløbet. Kædepoint tæller i din highscore, og din kæde følger med, når du fortsætter en gemt runde. To Svend giver samme bonus som før.'
