@@ -13,11 +13,11 @@ export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},ge
   item.ticketPromise=ticket;
   return ticket;
  }
- function event(kind,tier,time){
+ function event(kind,tier,time,...lineage){
   if(!current)return;
   if(current.events.length>=20000){current.invalid=true;return;}
-  current.events.push([kind,tier,Math.round(time*1000)]);
-  current.duration=Math.max(1,Math.round(time*1000));persist(current);
+  current.events.push([kind,tier,Math.round(time*1000),...lineage]);
+  current.duration=Math.max(1,Math.round(time*1000));persist(current);return current.events.length;
  }
  function end(time){if(!current)return;if(!current.events.length){jobs.delete(current.key);current=null;return;}current.duration=Math.max(current.duration,Math.round(time*1000));current.final=true;current.gameOverAt=now();persist(current);current=null;void flush();}
  async function flush(){

@@ -19,9 +19,14 @@ export function dropRound(round,time,random=Math.random){
   round.current=round.next;round.next=nextTier(round.drops,round.maxTier,random);
   return tier;
 }
-export function mergeRound(round,a,b){
+// Only a tile produced by a recent merge can carry a chain into the next one.
+export function chainMultiplier(a,b,nowMs){
+ const active=chain=>chain && nowMs>=chain.at && nowMs-chain.at<=2000 ? chain.depth : 0;
+ return Math.min(5,1+Math.max(active(a),active(b)));
+}
+export function mergeRound(round,a,b,multiplier=1){
   const tier=mergeTier(a,b);if(tier===null)return tier;
   if(tier===CLEAR_PAIR){round.score+=round.svendBonus||0;return tier;}
-  round.score+=VALUES[tier];round.maxTier=Math.max(round.maxTier,tier);return tier;
+  round.score+=VALUES[tier]*multiplier;round.maxTier=Math.max(round.maxTier,tier);return tier;
 }
 export function advanceDanger(previous,above,delta){return above?previous+delta:0;}

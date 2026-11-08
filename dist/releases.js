@@ -1,4 +1,9 @@
 export const RELEASES=[{
+ version:'1.2.0',date:'8. november 2026',changes:[
+  'Merger en ny brik videre inden for to sekunders spilletid, får du dobbelt point for det led. Fortsætter kæden, stiger bonussen til ×3, ×4 og højst ×5.',
+  'Guldteksten over brikkerne viser hele beløbet. Kædepoint tæller i din highscore, og din kæde følger med, når du fortsætter en gemt runde. To Svend giver samme bonus som før.'
+ ]
+},{
  version:'1.1.5',date:'8. november 2026',changes:[
   'Din runde gemmes automatisk. Lukker du browseren midt i spillet, kan du åbne det igen i samme browser og trykke Spil videre. Dine brikker, point og resterende Ryst og Fjern er bevaret.'
  ]
