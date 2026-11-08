@@ -1,10 +1,10 @@
-import {createPlayClock,formatPlayTime} from './play-time.js?v=1.1.0';
+import {createPlayClock,formatPlayTime} from './play-time.js?v=resume1';
 import {earnedPowers,createRewardNotices} from './reward-notices.js?v=gameover-notices-v1';
 import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.1.4';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=resume1';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,advanceDanger} from './rules.js?v=svend-bonus-v2';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
@@ -65,7 +65,7 @@ function shake(){
  if(mode!=="playing"||powers.shake<1||time<shakeUntil||!bodies.length)return;
  cancelRemove();scoreEvent('s',0,time);powers.shake--;shakeUntil=time+.65;
  shakePulse=0;shakeKick(1);
- $(".arena-wrap").animate([{translate:"0"},{translate:"-6px"},{translate:"6px"},{translate:"-5px"},{translate:"5px"},{translate:"-3px"},{translate:"0"}],{duration:600});syncPowers();
+ $(".arena-wrap").animate([{translate:"0"},{translate:"-6px"},{translate:"6px"},{translate:"-5px"},{translate:"5px"},{translate:"-3px"},{translate:"0"}],{duration:600});syncPowers();saveRound();
 }
 function shakeKick(direction){
  for(const b of bodies){if(!b.plugin.alive)continue;Matter.Sleeping.set(b,false);Body.setVelocity(b,{x:Math.max(-6.4,Math.min(6.4,b.velocity.x+direction*5.2)),y:Math.min(b.velocity.y,-.6)});Body.setAngularVelocity(b,Math.max(-.07,Math.min(.07,b.angularVelocity+direction*.035)));}
@@ -74,7 +74,7 @@ function removeAt(x,y){
  if(!removing||mode!=="playing"||powers.remove<1)return false;
  const body=[...bodies].reverse().find(b=>b.plugin.alive&&Matter.Query.point(b.parts.length>1?b.parts.slice(1):[b],{x,y}).length);if(!body)return false;
  scoreEvent('r',body.plugin.tier,time);body.plugin.alive=false;Composite.remove(engine.world,body);bodies=bodies.filter(b=>b!==body);pending=pending.filter(pair=>!pair.includes(body));powers.remove--;
- for(const b of bodies)Matter.Sleeping.set(b,false);burst(body.position.x,body.position.y,body.plugin.tier);cancelRemove();return true;
+ for(const b of bodies)Matter.Sleeping.set(b,false);burst(body.position.x,body.position.y,body.plugin.tier);cancelRemove();saveRound();return true;
 }
 $("#shake").onclick=shake;$("#remove").onclick=()=>{if(mode!=="playing"||powers.remove<1)return;removing=!removing;dragging=false;syncPowers();if(removing)toast("Tryk på en brik for at fjerne den. Tryk Fjern igen for at annullere.");};
 let audioGeneration=0;
@@ -226,7 +226,7 @@ Events.on(engine,'collisionStart',({pairs})=>{
 });
 function processMerges(){
   for(const [a,b] of pending){const x=(a.position.x+b.position.x)/2,y=(a.position.y+b.position.y)/2,tier=mergeRound(round,a.plugin.tier,b.plugin.tier);Composite.remove(engine.world,[a,b]);bodies=bodies.filter(v=>v!==a&&v!==b);if(tier!==null){scoreEvent(tier===CLEAR_PAIR&&round.svendBonus?'b':'m',a.plugin.tier,time);if(tier===CLEAR_PAIR){burst(x,y,VALUES.length-1,true);tileSound(VALUES.length-1);floats.push({x,y,text:round.svendBonus?`+${numberFormat.format(round.svendBonus)}!`:'Mere plads!',life:1.8});if(round.svendBonus)rewardNotices.push({kind:'svend',text:`🎆 To Svend! +${numberFormat.format(round.svendBonus)} bonuspoint`});setStatus('To Svend — mere plads til familien!');continue;}const n=spawn(tier,x,y);Body.setVelocity(n,{x:(a.velocity.x+b.velocity.x)*.18,y:Math.min(0,(a.velocity.y+b.velocity.y)*.18)});burst(x,y,tier,true);scoreFloat(x,y,VALUES[tier]);tileSound(tier);}}
-  if(pending.length)syncUI();pending=[];
+  if(pending.length){syncUI();lastSaveTime=-Infinity;}pending=[];
 }
 let dropPreview=null;
 function dropPlacement(){
@@ -250,7 +250,7 @@ function drop(){
  if(blocked){setStatus('Ingen plads her — sigt et andet sted, eller brug Ryst / Fjern.');return;}
  const tier=dropRound(round,time);if(tier===null)return;
  dropPreview=null;bodies.push(candidate);Composite.add(engine.world,candidate);
- scoreEvent('d',tier,time);scoreFloat(x,SPAWN+25,VALUES[tier]);dropSound();syncUI();setStatus('Find en makker. Skab noget større.');
+ scoreEvent('d',tier,time);scoreFloat(x,SPAWN+25,VALUES[tier]);dropSound();syncUI();saveRound();setStatus('Find en makker. Skab noget større.');
 }
 function showOverlay(title,text,button,kicker='ET LILLE ØJEBLIK',foot='Træk for at sigte · Slip for at droppe'){
   $('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');$('#score-result-open').hidden=true;
@@ -262,18 +262,57 @@ function lockPlayScreen(lock){
   document.body.classList.toggle('playing',lock);
   if(!lock){window.scrollTo(0,savedPageY);liveNotices.clear();rewardNotices.clear();}
 }
+const saveKey=()=> 'almind-merge-round-v1:'+liveNickname();
+let activeSaveKey=null,lastSaveTime=0;
+function readRound(){
+ try{
+  const s=JSON.parse(localStorage.getItem(saveKey()));
+  const tier=n=>Number.isInteger(n)&&n>=0&&n<VALUES.length;
+  const natural=n=>Number.isSafeInteger(n)&&n>=0;
+  if(!s||![s.time,s.elapsed,s.aim,s.shakeUntil,s.dangerProgress].every(Number.isFinite)
+   ||![s.round.current,s.round.next,s.round.maxTier].every(tier)
+   ||![s.round.score,s.round.drops,s.rewardLevel,s.powers.remove,s.powers.shake,s.shakePulse].every(natural)
+   ||!(s.round.lastDrop===null||Number.isFinite(s.round.lastDrop))
+   ||!Array.isArray(s.tiles)||!s.tiles.every(t=>tier(t.tier)&&[t.x,t.y,t.angle,t.vx,t.vy,t.spin,t.age,t.danger].every(Number.isFinite))
+   ||!s.journal?.key||!Array.isArray(s.journal.events)||s.journal.final)return null;
+  return s;
+ }catch{return null;}
+}
+function saveRound(){
+ if(!activeSaveKey||(mode!=='playing'&&mode!=='paused'))return;
+ try{
+  const tiles=bodies.map(b=>({tier:b.plugin.tier,x:b.position.x,y:b.position.y,angle:b.angle,
+   vx:Body.getVelocity(b).x,vy:Body.getVelocity(b).y,spin:Body.getAngularVelocity(b),age:b.plugin.age,danger:b.plugin.danger}));
+  localStorage.setItem(activeSaveKey,JSON.stringify({round,time,elapsed:playSeconds(),aim,powers,rewardLevel,
+   shakeUntil,shakePulse,dangerProgress,tiles,journal:scoreSnapshot()}));lastSaveTime=time;
+ }catch{}
+}
+function continueSaved(){
+ if(!requirePlayerName(continueSaved))return;
+ const s=readRound();if(!s){start();return;}
+ activeSaveKey=saveKey();round=s.round;round.lastDrop??=-Infinity;
+ time=s.time;lastSaveTime=time;aim=s.aim;powers=s.powers;rewardLevel=s.rewardLevel;
+ shakeUntil=s.shakeUntil;shakePulse=s.shakePulse;dangerProgress=s.dangerProgress;
+ for(const t of s.tiles){
+  const b=makeTileBody(t.tier,t.x,t.y);Body.setAngle(b,t.angle);
+  Body.setVelocity(b,{x:t.vx,y:t.vy});Body.setAngularVelocity(b,t.spin);
+  b.plugin.age=t.age;b.plugin.danger=t.danger;bodies.push(b);Composite.add(engine.world,b);
+ }
+ restoreScore(s.journal);playClock.start(s.elapsed);mode='paused';
+ document.body.classList.add('started');$('#pause').disabled=false;syncUI();syncClock();resume();
+}
 function start(){
   if(!assetsReady)return;
   ensureAudio();if(!requirePlayerName(start))return;
   playClock.pause();flushScore();playClock.start();
-  scoreRoundStart();
+  activeSaveKey=saveKey();scoreRoundStart();
   ensureAudio();if(audioCtx){recordedBuffer('assets/game-over-voice.m4a').catch(()=>{});recordedBuffer('assets/danger-riser.m4a').catch(()=>{});}
   document.body.classList.add('started');fireworks=[];dangerProgress=0;$('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');
-  dropPreview=null;rewardNotices.clear();stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound(availableSvendBonus);powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
+  dropPreview=null;rewardNotices.clear();stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound(availableSvendBonus);powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');saveRound();setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
 }
-function pause(){if(mode!=='playing')return;playClock.pause();syncClock();mode='paused';cancelRemove();lockPlayScreen(false);flushScore();refreshLeaderboard();keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');livePlayers.changed();}
+function pause(){if(mode!=='playing')return;playClock.pause();syncClock();mode='paused';saveRound();cancelRemove();lockPlayScreen(false);flushScore();refreshLeaderboard();keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');livePlayers.changed();}
 function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;playClock.resume();mode='playing';syncPowers();lockPlayScreen(true);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();}
-function end(){if(mode==='over')return;playClock.pause();syncClock();mode='over';mobileDisplay.leave();fireworks=[];cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);$('#game-over-logo').hidden=false;$('#overlay').classList.add('game-over');gameOverSound();scoreRoundEnd(round,playSeconds());livePlayers.changed();}
+function end(){if(mode==='over')return;playClock.pause();syncClock();mode='over';try{localStorage.removeItem(activeSaveKey);}catch{}activeSaveKey=null;mobileDisplay.leave();fireworks=[];cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);$('#game-over-logo').hidden=false;$('#overlay').classList.add('game-over');gameOverSound();scoreRoundEnd(round,playSeconds());livePlayers.changed();}
 function step(dt){
   if(mode!=='playing')return;time+=dt;if(shakeUntil&&time<shakeUntil){const pulse=Math.floor((time-(shakeUntil-.65))/.16);if(pulse>shakePulse){shakePulse=pulse;shakeKick(pulse%2?-1:1);}}if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
   if(keys.has('ArrowLeft'))aim-=260*dt;if(keys.has('ArrowRight'))aim+=260*dt;
@@ -285,7 +324,7 @@ function step(dt){
   dangerProgress=Math.min(1,worst/TOP_WAIT);
   dangerAudio.sync(worst,soundOn);
   $('#danger').hidden=worst<.8;if(worst>=.8)$('#danger b').textContent=Math.max(0,TOP_WAIT-worst).toFixed(1).replace('.',',');
-  if(worst>=TOP_WAIT)end();
+  if(worst>=TOP_WAIT)end();else if(time-lastSaveTime>=1)saveRound();
   for(const f of fireworks.filter(f=>f.at<=time))firework(f.x,f.y,f.level);fireworks=fireworks.filter(f=>f.at>time);
   for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=110*dt;p.life-=dt;}particles=particles.filter(p=>p.life>0);
   for(const f of floats){f.y-=30*dt;f.life-=dt;}floats=floats.filter(f=>f.life>0);
@@ -324,7 +363,7 @@ canvas.addEventListener('pointercancel',()=>dragging=false);
 canvas.addEventListener('touchmove',e=>{if(mode==='playing')e.preventDefault();},{passive:false});
 document.addEventListener('keydown',e=>{if(document.querySelector('dialog[open]')||/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName))return;if(['ArrowLeft','ArrowRight',' ','Enter','p','P'].includes(e.key))e.preventDefault();if(e.key==='p'||e.key==='P'){if(!e.repeat)mode==='playing'?pause():resume();return;}if(mode==='playing'){keys.add(e.key);if((e.key===' '||e.key==='Enter')&&!e.repeat)drop();}});
 document.addEventListener('keyup',e=>keys.delete(e.key));document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});window.addEventListener('blur',()=>{keys.clear();pause();});
-$('#play').onclick=()=>mode==='paused'?resume():start();$('#pause').onclick=()=>mode==='playing'?pause():resume();
+$('#play').onclick=()=>mode==='paused'?resume():mode==='ready'&&readRound()?continueSaved():start();$('#pause').onclick=()=>mode==='playing'?pause():resume();
 $('#sound').onclick=()=>{soundOn=!soundOn;if(!soundOn)stopSounds();else ensureAudio();updateSoundButton();try{localStorage.setItem('merge-lab-sound',soundOn?'on':'off');}catch{}};
 let resumeAfterDialog=false;
 function openDialog(id){resumeAfterDialog=mode==='playing';pause();$('#'+id).showModal();}
@@ -350,7 +389,7 @@ const rewardNotices=createRewardNotices({
 });
 const liveNotices=createLiveNotices({canNotify:()=>mode==='playing'&&!document.hidden,show:notice=>{const el=$('#live-announcement');el.textContent=notice.text;el.dataset.kind=notice.kind;el.classList.add('visible');},hide:()=>$('#live-announcement').classList.remove('visible')});
 const livePlayers=createLivePlayers({api:scoreApi,getTicket:liveRoundTicket,getNickname:liveNickname,getState:()=>({mode,score:round.score,maxTier:round.maxTier}),render:(snapshot,status)=>{renderLivePlayers(snapshot,status);liveNotices.observe(snapshot,status);},visible:()=>!document.hidden&&!departed});
-window.addEventListener('pagehide',()=>{departed=true;livePlayers.changed();});window.addEventListener('pageshow',()=>{departed=false;livePlayers.changed();});
+window.addEventListener('pagehide',()=>{saveRound();departed=true;livePlayers.changed();});window.addEventListener('pageshow',()=>{departed=false;livePlayers.changed();});
 window.addEventListener('online',()=>{livePlayers.changed();});window.addEventListener('offline',()=>{livePlayers.changed();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)rewardNotices.clear();livePlayers.changed();});
 const mobileDisplay=initMobileDisplay({isPlaying:()=>mode==='playing',pause,cancelDrag:()=>{dragging=false;}});
@@ -369,7 +408,7 @@ $('#play').disabled=true;
    preloadImages((done,total)=>{imageDone=done;imageTotal=total;progress();}),
    scoreApi.gameRules().then(r=>{availableSvendBonus=r?.svend_bonus===SVEND_BONUS?SVEND_BONUS:0;}).catch(()=>{}).finally(()=>{rulesDone=true;progress();})
   ]);
-  buildFamily();assetsReady=true;$('#play').disabled=false;$('#load-label').textContent='Klar til at spille · 100%';
+  buildFamily();assetsReady=true;$('#play').disabled=false;$('#load-label').textContent='Klar til at spille · 100%';if(readRound())$('#play').textContent='Spil videre';
  }catch(err){failed=true;$('#load-label').textContent='Indlæsningen mislykkedes. Prøv igen.';$('#load-retry').hidden=false;}
 })();
 $('#load-retry').onclick=()=>location.reload();

@@ -48,5 +48,14 @@ export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},ge
    }catch{onStatus('Din score er gemt på enheden. Vi prøver automatisk igen, når der er forbindelse.');}
   }}finally{flushing=false;}
  }
- return {start,event,end,flush,ticket:()=>current?.ticket?Promise.resolve({id:current.ticket.id}):current?.ticketPromise||Promise.resolve(null)};
+ function snapshot(){
+  if(!current)return null;
+  const {ticketPromise,...data}=current;return data;
+ }
+ function restore(saved){
+  const prior=jobs.get(saved.key);
+  current=Object.assign(prior||{},{...saved,ticket:prior?.ticket||saved.ticket});
+  jobs.set(current.key,current);
+ }
+ return {start,event,end,flush,snapshot,restore,ticket:()=>current?.ticket?Promise.resolve({id:current.ticket.id}):current?.ticketPromise||Promise.resolve(null)};
 }
