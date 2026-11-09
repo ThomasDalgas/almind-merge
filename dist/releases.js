@@ -1,4 +1,6 @@
 export const RELEASES=[{
+ version:'1.2.2',date:'9. november 2026',changes:['Ugens og alle tiders highscore viser nu kun afsluttede runder. Du kan stadig gemme en runde undervejs og spille videre senere.']
+},{
  version:'1.2.1',date:'8. november 2026',changes:['Pointteksten over brikkerne viser nu fx “Bonus ×2 · +16”.']
 },{
  version:'1.2.0',date:'8. november 2026',changes:[
