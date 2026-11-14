@@ -1,12 +1,13 @@
+import {forStorage,fromStorage} from './journal-storage.js?v=1.2.3';
 // Persist each round independently so tabs and unfinished uploads cannot overwrite each other.
 export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},getDuration=()=>null,getVersion=()=>null,now=Date.now}){
  const prefix='almind-score-pending:',jobs=new Map();let current=null,flushing=false;
- const persist=item=>{const {ticketPromise,...saved}=item;store.set(prefix+item.key,JSON.stringify(saved));};
+ const persist=item=>{const {ticketPromise,...saved}=item;store.set(prefix+item.key,JSON.stringify(forStorage(saved)));};
  for(const key of store.keys())if(key.startsWith(prefix)){
-  try{const item=JSON.parse(store.get(key));if(item?.key&&Array.isArray(item.events)&&item.events.length){jobs.set(item.key,item);}}catch{}
+  try{const item=fromStorage(JSON.parse(store.get(key)));if(item?.key&&Array.isArray(item.events)&&item.events.length){jobs.set(item.key,item);}}catch{}
  }
- function start(nickname){
-  if(current){if(current.events.length){current.final=true;persist(current);}else jobs.delete(current.key);}
+ function start(nickname,previousSeconds){
+  if(current){if(current.events.length){current.final=true;if(Number.isFinite(previousSeconds))current.duration=Math.max(current.duration,Math.round(previousSeconds*1000));persist(current);}else jobs.delete(current.key);}
   const item={key:crypto.randomUUID(),nickname,version:getVersion(),events:[],duration:1,final:false,ticket:null};
   current=item;jobs.set(item.key,item);
   const ticket=api.start().then(id=>{item.ticket={id,readyAt:now()};if(item.events.length)persist(item);return {id,readyAt:performance.now()};}).catch(()=>null);
@@ -15,7 +16,9 @@ export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},ge
  }
  function event(kind,tier,time,...lineage){
   if(!current)return;
-  if(current.events.length>=20000){current.invalid=true;return;}
+  // Old clients stopped recording once invalid. Do not append to a journal
+  // with a known gap and present its incomplete history as a verified score.
+  if(current.invalid)return;
   current.events.push([kind,tier,Math.round(time*1000),...lineage]);
   current.duration=Math.max(1,Math.round(time*1000));persist(current);return current.events.length;
  }
@@ -40,7 +43,7 @@ export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},ge
     onStatus(`Din score på ${new Intl.NumberFormat('da-DK').format(score)} er gemt!`);
     if(item.events.length===count&&item.final===final&&item.duration===duration){
      // A different tab may have appended a newer checkpoint to this journal.
-     let stored=null;try{stored=JSON.parse(store.get(prefix+item.key));}catch{}
+     let stored=null;try{stored=fromStorage(JSON.parse(store.get(prefix+item.key)));}catch{}
      if(!stored||(stored.events.length===count&&stored.final===final&&stored.duration===duration&&stored.ticket?.id===item.ticket.id))store.remove(prefix+item.key);
      if(item!==current)jobs.delete(item.key);
     }

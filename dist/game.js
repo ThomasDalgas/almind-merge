@@ -1,10 +1,11 @@
+import {forStorage,fromStorage} from './journal-storage.js?v=1.2.3';
 import {createPlayClock,formatPlayTime} from './play-time.js?v=resume1';
 import {earnedPowers,createRewardNotices} from './reward-notices.js?v=gameover-notices-v1';
 import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.2.2';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.2.3';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,chainMultiplier,advanceDanger} from './rules.js?v=1.2.0';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
@@ -287,7 +288,7 @@ const saveKey=()=> 'almind-merge-round-v1:'+liveNickname();
 let activeSaveKey=null,lastSaveTime=0;
 function readRound(){
  try{
-  const s=JSON.parse(localStorage.getItem(saveKey()));
+  const s=JSON.parse(localStorage.getItem(saveKey()));if(s)s.journal=fromStorage(s.journal);
   const tier=n=>Number.isInteger(n)&&n>=0&&n<VALUES.length;
   const natural=n=>Number.isSafeInteger(n)&&n>=0;
   if(!s||![s.time,s.elapsed,s.aim,s.shakeUntil,s.dangerProgress].every(Number.isFinite)
@@ -305,7 +306,7 @@ function saveRound(){
   const tiles=bodies.map(b=>({tier:b.plugin.tier,x:b.position.x,y:b.position.y,angle:b.angle,
    vx:Body.getVelocity(b).x,vy:Body.getVelocity(b).y,spin:Body.getAngularVelocity(b),age:b.plugin.age,danger:b.plugin.danger,chain:b.plugin.chain}));
   localStorage.setItem(activeSaveKey,JSON.stringify({round,time,elapsed:playSeconds(),aim,powers,rewardLevel,
-   shakeUntil,shakePulse,dangerProgress,tiles,journal:scoreSnapshot()}));lastSaveTime=time;
+   shakeUntil,shakePulse,dangerProgress,tiles,journal:forStorage(scoreSnapshot())}));lastSaveTime=time;
  }catch{}
 }
 function continueSaved(){
@@ -325,8 +326,11 @@ function continueSaved(){
 function start(){
   if(!assetsReady)return;
   ensureAudio();if(!requirePlayerName(start))return;
-  playClock.pause();flushScore();playClock.start();
-  activeSaveKey=saveKey();scoreRoundStart();
+  playClock.pause();
+  const previous=mode==='ready'?readRound():null;
+  if(previous)restoreScore({...previous.journal,duration:Math.max(previous.journal.duration,Math.round(previous.elapsed*1000))});
+  const previousSeconds=previous?.elapsed??playSeconds();playClock.start();
+  activeSaveKey=saveKey();scoreRoundStart(previousSeconds);flushScore();
   ensureAudio();if(audioCtx){recordedBuffer('assets/game-over-voice.m4a').catch(()=>{});recordedBuffer('assets/danger-riser.m4a').catch(()=>{});}
   document.body.classList.add('started');fireworks=[];dangerProgress=0;$('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');
   dropPreview=null;rewardNotices.clear();stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound(availableSvendBonus);powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');saveRound();setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
@@ -395,7 +399,12 @@ let resumeAfterDialog=false;
 function openDialog(id){resumeAfterDialog=mode==='playing';pause();$('#'+id).showModal();}
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$('#'+b.dataset.close).close());
 document.querySelectorAll('dialog').forEach(d=>d.addEventListener('close',()=>{stopSounds();if(resumeAfterDialog){resumeAfterDialog=false;resume();}}));
-$('#how-open').onclick=()=>openDialog('how');$('#restart').onclick=()=>{if(round.drops>0&&mode!=='over')openDialog('confirm');else start();};
+$('#how-open').onclick=()=>openDialog('how');
+function requestRestart(){
+ if(!assetsReady)return;
+ openDialog('confirm');$('#cancel-restart').focus();
+}
+$('#restart').onclick=requestRestart;$('#restart-saved').onclick=requestRestart;
 $('#confirm-restart').onclick=()=>{resumeAfterDialog=false;$('#confirm').close();start();};
 const portrait=$('#portrait');
 let portraitBackdropDown=false,portraitTier=null;
@@ -434,7 +443,7 @@ $('#play').disabled=true;
    preloadImages((done,total)=>{imageDone=done;imageTotal=total;progress();}),
    scoreApi.gameRules().then(r=>{availableSvendBonus=r?.svend_bonus===SVEND_BONUS?SVEND_BONUS:0;}).catch(()=>{}).finally(()=>{rulesDone=true;progress();})
   ]);
-  buildFamily();assetsReady=true;$('#play').disabled=false;$('#load-label').textContent='Klar til at spille · 100%';if(readRound())$('#play').textContent='Spil videre';
+  buildFamily();assetsReady=true;$('#play').disabled=false;$('#load-label').textContent='Klar til at spille · 100%';if(readRound()){$('#play').textContent='Spil videre';$('#restart-saved').hidden=false;}
  }catch(err){failed=true;$('#load-label').textContent='Indlæsningen mislykkedes. Prøv igen.';$('#load-retry').hidden=false;}
 })();
 $('#load-retry').onclick=()=>location.reload();

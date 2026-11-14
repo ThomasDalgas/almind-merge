@@ -1,4 +1,6 @@
 export const RELEASES=[{
+ version:'1.2.3',date:'14. november 2026',changes:['Vælger du Start forfra efter genåbning, afsluttes den gemte runde, så dens point kan tælle på highscoren.','Start forfra har fået ekstra afstand til pauseknappen og kræver altid bekræftelse.','Lange runder kan nu gemmes og tælle med efter 20.000 handlinger.']
+},{
  version:'1.2.2',date:'9. november 2026',changes:['Ugens og alle tiders highscore viser nu kun afsluttede runder. Du kan stadig gemme en runde undervejs og spille videre senere.']
 },{
  version:'1.2.1',date:'8. november 2026',changes:['Pointteksten over brikkerne viser nu fx “Bonus ×2 · +16”.']

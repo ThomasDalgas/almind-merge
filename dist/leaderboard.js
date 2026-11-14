@@ -1,6 +1,6 @@
 import {formatPlayTime} from './play-time.js?v=1.1.0';
 import {SCORE_CONFIG} from './score-config.js';
-import {createScoreAutosave} from './score-autosave.js?v=1.2.0';
+import {createScoreAutosave} from './score-autosave.js?v=1.2.3';
 const $=s=>document.querySelector(s),fmt=new Intl.NumberFormat('da-DK');
 const storage={get(k){try{return localStorage.getItem(k);}catch{return null;}},set(k,v){try{localStorage.setItem(k,v);}catch{}},remove(k){try{localStorage.removeItem(k);}catch{}},keys(){try{return Object.keys(localStorage);}catch{return [];}}};
 export function validNickname(value){return /^[\p{L}\p{N} _-]{2,20}$/u.test(value.trim());}
@@ -68,11 +68,11 @@ export async function refreshLeaderboard(){
 }
 let roundTimeSource=null;
 export const setRoundTimeSource=source=>{roundTimeSource=source;};
-const autosave=createScoreAutosave({getVersion:()=>'1.2.2',api,store:storage,getDuration:()=>roundTimeSource?.(),onStatus:message,onSaved:()=>{if(!document.body.classList.contains('playing'))refreshLeaderboard();}});
+const autosave=createScoreAutosave({getVersion:()=>'1.2.3',api,store:storage,getDuration:()=>roundTimeSource?.(),onStatus:message,onSaved:()=>{if(!document.body.classList.contains('playing'))refreshLeaderboard();}});
 export const scoreSnapshot=()=>autosave.snapshot();
 export const restoreScore=item=>autosave.restore(item);
-export function scoreRoundStart(){
- autosave.start(nickname);$('#score-result-open').hidden=true;message('Din rekord gemmes automatisk undervejs.');
+export function scoreRoundStart(previousSeconds){
+ autosave.start(nickname,previousSeconds);$('#score-result-open').hidden=true;message('Din rekord gemmes automatisk undervejs.');
 }
 export const scoreEvent=(...args)=>autosave.event(...args);
 export function scoreRoundEnd(round,time){autosave.end(time);$('#score-result-open').hidden=false;}
