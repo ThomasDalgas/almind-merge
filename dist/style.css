@@ -499,9 +499,9 @@ body.touch-device.started .swap-cards{display:block;position:absolute;inset:0;z-
 #round-copy[hidden]{display:none}#round-copy{margin-top:8px;text-align:left}#round-copy button{padding:6px 10px;font-size:13px}#sync-status:not(:empty){display:block;margin:5px auto;max-width:32ch}
 @media (max-width:600px) and (orientation:portrait){
  body.touch-device.playing main{
-  --top:max(5px,var(--safe-top));--bottom:max(4px,var(--safe-bottom));
+  --top:calc(max(5px,var(--safe-top)) + 24px);--bottom:max(4px,var(--safe-bottom));
   --room:calc(var(--app-height,100dvh) - var(--top) - var(--bottom));
-  --unit:min(calc((var(--app-width,100vw) - max(14px,var(--safe-left)) - max(14px,var(--safe-right))) / 100),calc((var(--room) - 10px) / 189));
+  --unit:min(calc((var(--app-width,100vw) - max(14px,var(--safe-left)) - max(14px,var(--safe-right))) / 100),calc((var(--room) - 18px) / 189));
   --board-width:calc(100 * var(--unit));
   padding:var(--top) max(14px,var(--safe-right)) var(--bottom) max(14px,var(--safe-left));
  }
@@ -541,5 +541,12 @@ body.touch-device.started .swap-cards{display:block;position:absolute;inset:0;z-
  #pause-scores button[aria-pressed=true]{background:#145666;color:white}
  #pause-scores ol{max-height:140px;overflow:auto;padding:0;margin:6px 0 0}
  #pause-scores .highscore-row{padding:5px}
+ #pause-scores .highscore-row>b,#pause-scores .highscore-rank,#pause-scores #highscore-status{color:#143f50}
  #pause-scores .highscore-row small{display:none}
 }
+
+/* Shared board finish; touch layouts stack the cards beneath the board. */
+body :is(.arena-wrap,.score-card,.next-card),body:not(.started) .arena-wrap{border-color:#39757a;box-shadow:none}
+body .score-card,body .next-card,body.touch-device.playing :is(.score-card,.next-card){border-width:2px}
+body .arena-wrap:has(.removing){border-color:#ac583e}
+body.touch-device.playing .left-rail{margin-top:8px}

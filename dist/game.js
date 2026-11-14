@@ -5,7 +5,7 @@ import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.5.0';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.5.1';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,chainMultiplier,advanceDanger} from './rules.js?v=1.2.0';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
@@ -517,9 +517,10 @@ document.addEventListener('pointerup',e=>{
  if(e.target.closest('.swap-cards'))suppressCardClick=e.target.closest('.swap-cards');
  const cancel=cancelAt(e);updateAim(e);clearAim();
  if(!cancel){drop();return;}
- const arrow=$('#cancel-arrow'),box=arrow.parentElement.getBoundingClientRect();
- arrow.style.left=Math.max(12,Math.min(box.width-16,e.clientX-box.left))+'px';
- arrow.style.top=Math.max(26,Math.min(box.height-4,e.clientY-box.top-8))+'px';
+ const arrow=$('#cancel-arrow'),{candidate,x}=dropPlacement();
+ const board=canvas.getBoundingClientRect(),parent=arrow.parentElement,box=parent.getBoundingClientRect();
+ arrow.style.left=(board.left-box.left-parent.clientLeft+x*board.width/W)+'px';
+ arrow.style.top=(board.top-box.top-parent.clientTop+Math.max(arrow.getBoundingClientRect().height,candidate.bounds.min.y*board.height/H-4))+'px';
  arrow.getAnimations().forEach(animation=>animation.cancel());
  arrow.animate([{opacity:1},{opacity:1,offset:.45},{opacity:0}],{duration:440});
 
