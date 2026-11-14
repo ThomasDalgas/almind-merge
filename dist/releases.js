@@ -1,4 +1,6 @@
 export const RELEASES=[{
+ version:'1.4.1',date:'14. november 2026',changes:['Gem kopi og Synk til server ligger nu i menuen Backup og synk under highscoren.']
+},{
  version:'1.4.0',date:'14. november 2026',changes:['Gem en kopi af spillepladen i Filer eller synk den til serveren fra pause eller før Spil videre. Runden forbliver åben.','En runde kan nu registrere point efter seks timers spilletid.']
 },{
  version:'1.3.2',date:'14. november 2026',changes:['En lille rød pil vises kort, når du stryger op og slipper for at annullere et drop.']

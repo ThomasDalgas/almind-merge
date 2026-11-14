@@ -496,4 +496,4 @@ body.touch-device.started .swap-cards{display:block;position:absolute;inset:0;z-
 
 #cancel-arrow{position:absolute;pointer-events:none;opacity:0;color:#bc2838;filter:drop-shadow(0 1px 1px white);transform:translate(-50%,-100%)}
 
-#round-copy[hidden]{display:none}#round-copy{margin-top:8px;text-align:center}#round-copy button{padding:6px 10px;font-size:13px}#sync-status:not(:empty){display:block;margin:5px auto;max-width:32ch}
+#round-copy[hidden]{display:none}#round-copy{margin-top:8px;text-align:left}#round-copy button{padding:6px 10px;font-size:13px}#sync-status:not(:empty){display:block;margin:5px auto;max-width:32ch}

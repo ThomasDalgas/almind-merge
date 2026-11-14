@@ -52,6 +52,11 @@ try{
   assert.equal(s.round.score,score);assert.equal(s.journal.invalid,true);assert.equal(r,roundId);assert.ok(s.journal.eventBlocks?.length);assert.ok(!s.journal.events);
   return (await p.locator('#sync-status').innerText()).trim();
  }
+ async function openMenu(){
+  assert.equal(await p.locator('#sync-round').isVisible(),false);
+  await p.locator('#highscores #round-copy summary').click();
+ }
+ await openMenu();
  const success=await backup(false);assert.match(success,/726.348 point/);assert.match(success,/ikke verificeret/);
  const failure=await backup(true);assert.match(failure,/Ingen bekræftet serverkopi/i);assert.equal(await backup(false),success,'retry after failure succeeds');
  assert.equal(await p.locator('#play').textContent(),'Spil videre');
@@ -69,7 +74,7 @@ try{
  await p.locator('#pause').click();await p.waitForFunction(()=>__mergeTest.state.mode==='paused');
  assert.equal(await p.evaluate(()=>__mergeTest.state.round.score),score);
  assert.deepEqual(await p.evaluate(()=>__mergeTest.state.bodies.map(b=>b.tier)),[8,1]);
- assert.equal(await p.locator('#sync-round').isVisible(),true);await backup(false);
+ await openMenu();await backup(false);
  assert.equal(await p.evaluate(()=>__mergeTest.state.mode),'paused');
  await p.reload();await p.waitForFunction(()=>window.__mergeTest?.ready);
  assert.equal(await p.locator('#play').textContent(),'Spil videre');
