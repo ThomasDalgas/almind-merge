@@ -1,4 +1,6 @@
 export const RELEASES=[{
+ version:'1.4.0',date:'14. november 2026',changes:['Gem en kopi af spillepladen i Filer eller synk den til serveren fra pause eller før Spil videre. Runden forbliver åben.','En runde kan nu registrere point efter seks timers spilletid.']
+},{
  version:'1.3.2',date:'14. november 2026',changes:['En lille rød pil vises kort, når du stryger op og slipper for at annullere et drop.']
 },{
  version:'1.3.1',date:'14. november 2026',changes:['Tryk på Næste eller Score for at bytte deres plads på mobilen. Spillet husker placeringen.','På mobil kan du nu sigte uden en besked over brikken. Stryg op og slip for at annullere som før.']

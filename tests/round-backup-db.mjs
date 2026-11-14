@@ -1,0 +1,38 @@
+import fs from 'node:fs/promises';import assert from 'node:assert/strict';
+const {PGlite}=await import(process.env.PGLITE_MODULE);const db=new PGlite();
+await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key,email_confirmed_at timestamptz default now(),is_anonymous boolean default false);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;`);
+for(const f of (await fs.readdir(new URL('../supabase/migrations/',import.meta.url))).sort())await db.exec(await fs.readFile(new URL('../supabase/migrations/'+f,import.meta.url),'utf8'));
+const owner='00000000-0000-4000-8000-000000000001',other='00000000-0000-4000-8000-000000000002';
+await db.query('insert into auth.users(id) values($1),($2)',[owner,other]);
+async function login(id){await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated');}
+const one=async(q,args=[])=>Object.values((await db.query(q,args)).rows[0])[0];
+await login(owner);await one("select public.am_claim_name('Thomas')");
+const round=()=>one('select public.am_start_round()'),id=await round(),second=await round();
+const snap=(ticket,t=300,score=42)=>({time:t,elapsed:t+1,round:{score},powers:{shake:1},tiles:[],journal:{ticket:{id:ticket},events:[['d',0,0]]}});
+const put=(id,r,s)=>one('select public.am_put_round_backup($1,$2,$3)',[id,r,JSON.stringify(s)]);
+const get=id=>one('select public.am_get_round_backup($1)',[id]);
+assert.equal(await put(id,10,snap(id)),true);assert.equal(await put(id,10,snap(id)),true);
+assert.equal(await put(id,9,snap(id,301)),false);assert.equal(await put(id,11,snap(id,299)),false);
+assert.equal(await put(id,11,{...snap(id,301),elapsed:275}),false);
+assert.equal(await put(id,11,snap(id,301,41)),false);assert.equal(await put(id,11,snap(id,301,43)),true);
+assert.equal(await put(second,1,snap(second)),true);assert.deepEqual((await get(id)).snapshot,snap(id,301,43));
+await assert.rejects(put(id,12,snap(second)),/Invalid round backup/);
+await assert.rejects(put(id,13,{...snap(id),junk:'x'.repeat(6000001)}),/Invalid round backup/);
+await assert.rejects(db.query('select * from public.am_round_backups'),/permission denied/);
+await login(other);await one("select public.am_claim_name('Second')");
+assert.equal(await get(id),null);await assert.rejects(put(id,12,snap(id)),/Unknown round/);
+await db.exec('set role anon');await assert.rejects(get(id),/permission denied/);await assert.rejects(put(id,12,snap(id)),/permission denied/);
+await login(owner);await db.exec('reset role');await db.query('insert into public.am_player_devices(device_id,player_id) values($1,$2)',[owner,other]);
+await db.exec('set role authenticated');assert.equal(await get(id),null,'a switched device cannot access its previous profile backup');await assert.rejects(put(id,13,snap(id)),/Unknown round/);
+await db.exec('reset role');await db.query('delete from public.am_player_devices where device_id=$1',[owner]);
+await db.query("update public.am_rounds set started_at=now()-interval '31 days' where id=$1",[id]);await db.exec('set role authenticated');
+const day=86400000,ms=30*day,events=JSON.stringify([['d',0,ms-500,ms-500,0,0],['d',0,ms,ms,0,0],['m',0,ms,ms,0,0]]);
+await assert.rejects(one("select public.am_save_round_logged($1,'Thomas',$2,$3,'checkpoint','1.2.4',false)",[id,events,32*day]),/Invalid round duration/);
+assert.equal(await one("select public.am_checkpoint_round($1,'Thomas',$2,$3)",[id,events,ms]),8);
+assert.equal(await one("select public.am_save_round_logged($1,'Thomas',$2,$3,'gameover','1.2.4',true)",[id,events,ms]),8);
+assert.equal(await one("select public.am_submit_round($1,'Thomas',$2,$3)",[id,events,ms]),8);
+assert.equal(await get(id),null);assert.equal(await put(id,14,snap(id)),false);assert.ok(await get(second));
+await db.exec('set role anon');for(const scope of ['week','all']){const r=(await db.query('select * from public.am_leaderboard_v2($1)',[scope])).rows[0];assert.equal(Number(r.duration_ms),ms);assert.equal(r.score,8);}
+await db.exec('reset role');assert.equal(Number(await one('select count(*) from public.am_round_backups')),1);
+console.log('PASS 30-day chain replay through old and logged RPCs, weekly/all durations, expiry check, independent private backups, stale and foreign/switch rejection, terminal cleanup');
+await db.close();

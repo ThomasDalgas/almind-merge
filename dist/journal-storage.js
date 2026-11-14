@@ -22,7 +22,7 @@ export function fromStorage(item){
  const {eventBlocks,tail,...meta}=item,events=[];
  for(const encoded of eventBlocks){
   const bytes=atob(encoded);let i=0,wall=0,sim=0;
-  const get=()=>{let n=0,f=1;for(let j=0;j<5&&i<bytes.length;j++){const b=bytes.charCodeAt(i++);n+=(b%128)*f;if(b<128)return n;f*=128;}throw Error('Invalid journal');};
+  const get=()=>{let n=0,f=1;for(let j=0;j<8&&i<bytes.length;j++){const b=bytes.charCodeAt(i++);n+=(b%128)*f;if(!Number.isSafeInteger(n))throw Error('Invalid journal integer');if(b<128)return n;f*=128;}throw Error('Invalid journal');};
   while(i<bytes.length){const k=bytes.charCodeAt(i++),tier=bytes.charCodeAt(i++);wall+=get();
    const event=[kinds[k%8],tier,wall];if(k>=8){sim+=get();event.push(sim,get(),get());}events.push(event);}
  }

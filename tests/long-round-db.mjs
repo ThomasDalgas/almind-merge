@@ -10,7 +10,7 @@ const boards=async()=>Promise.all(['week','all'].map(async(scope)=>(await db.que
 const events=[],stamp=()=>drops*500;let drops=0,expected=0;
 const batch=()=>{for(let i=0;i<2048;i++){events.push(['d',0,stamp(),stamp(),0,0]);expected+=2;drops++;}let parents=Array(2048).fill(0);
  for(let tier=0;tier<11;tier++){const next=[];for(let i=0;i<parents.length;i+=2){events.push([tier===10?'b':'m',tier,stamp(),stamp(),parents[i],parents[i+1]]);next.push(events.length);expected+=tier===10?10000:2**(tier+2)*Math.min(tier+1,5);}parents=next;}};
-await assert.rejects(save([['d',0,0]],'submit',21600001),/Invalid round duration/);
+await assert.rejects(save([['d',0,0]],'submit',25200000),/Invalid round duration/);
 await assert.rejects(save(Array(100001).fill(['d',0,0]),'submit',1),/Invalid event log/);
 await assert.rejects(save([['x'.repeat(6000001),0,0]],'submit',1),/Invalid event log/);
 for(let i=0;i<6;i++)batch();

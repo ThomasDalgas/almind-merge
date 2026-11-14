@@ -1,11 +1,11 @@
-import {forStorage,fromStorage} from './journal-storage.js?v=1.2.3';
+import {forStorage,fromStorage} from './journal-storage.js?v=1.4.0';
 import {createPlayClock,formatPlayTime} from './play-time.js?v=resume1';
 import {earnedPowers,createRewardNotices} from './reward-notices.js?v=gameover-notices-v1';
 import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.3.2';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.4.0';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,chainMultiplier,advanceDanger} from './rules.js?v=1.2.0';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
@@ -275,6 +275,7 @@ function drop(){
  scoreEvent('d',tier);scoreFloat(x,SPAWN+25,VALUES[tier]);dropSound();syncUI();saveRound();setStatus('Find en makker. Skab noget større.');
 }
 function showOverlay(title,text,button,kicker='ET LILLE ØJEBLIK',foot='Træk for at sigte · Slip for at droppe'){
+  showCopyOptions(mode==='paused');
   $('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');$('#score-result-open').hidden=true;
   $('.game-logo').hidden=true;$('#overlay-title').textContent=title;$('#overlay-text').textContent=text;$('#play').textContent=button;$('#overlay-kicker').textContent=kicker;$('#overlay-foot').textContent=foot;$('#overlay').hidden=false;
 }
@@ -300,15 +301,62 @@ function readRound(){
   return s;
  }catch{return null;}
 }
-function saveRound(){
+function captureRound(){
  if(!activeSaveKey||(mode!=='playing'&&mode!=='paused'))return;
  try{
   const tiles=bodies.map(b=>({tier:b.plugin.tier,x:b.position.x,y:b.position.y,angle:b.angle,
    vx:Body.getVelocity(b).x,vy:Body.getVelocity(b).y,spin:Body.getAngularVelocity(b),age:b.plugin.age,danger:b.plugin.danger,chain:b.plugin.chain}));
-  localStorage.setItem(activeSaveKey,JSON.stringify({round,time,elapsed:playSeconds(),aim,powers,rewardLevel,
-   shakeUntil,shakePulse,dangerProgress,tiles,journal:forStorage(scoreSnapshot())}));lastSaveTime=time;
+  return {round,time,elapsed:playSeconds(),aim,powers,rewardLevel,
+   shakeUntil,shakePulse,dangerProgress,tiles,journal:scoreSnapshot()};
  }catch{}
 }
+function saveRound(){
+ try{
+  const s=captureRound();if(!s)return;
+  localStorage.setItem(activeSaveKey,JSON.stringify({...s,journal:forStorage(s.journal)}));lastSaveTime=time;
+ }catch{}
+}
+function copySource(){
+ return mode==='paused'?captureRound():mode==='ready'?readRound():null;
+}
+function showCopyOptions(show){
+ $('#round-copy').hidden=!show;
+ $('#sync-status').textContent='';
+}
+$('#export-round').onclick=()=>{
+ try{
+  const snapshot=copySource();if(!snapshot)throw Error();
+  const payload={format:'almind-merge-round',version:1,nickname:snapshot.journal.nickname,snapshot};
+  const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='Almind-Merge-'+snapshot.round.score+'-point.json';
+  document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+  $('#sync-status').textContent='Gem filen i Filer, hvis din iPhone spørger.';
+ }catch{$('#sync-status').textContent='Kopien kunne ikke oprettes. Behold runden åben.';}
+};
+$('#sync-round').onclick=async()=>{
+ const button=$('#sync-round'),status=$('#sync-status');
+ button.disabled=true;
+ try{
+  // Freeze the entire snapshot before the first await, even if play resumes.
+  const s=JSON.parse(JSON.stringify(copySource()));if(!s)throw Error();
+  const j=s.journal,id=j.ticket?.id;
+  if(!id){status.textContent='Runden mangler forbindelse til serveren. Gem en kopi i Filer.';return;}
+  const points=numberFormat.format(s.round.score);
+  status.textContent='Sender kopi af spillepladen …';
+  const accepted=await scoreApi.backup(id,Date.now(),{...s,journal:forStorage(j)});
+  if(accepted!==true){status.textContent='Serveren tog ikke imod denne kopi. Gem en kopi i Filer.';return;}
+  const receipt='Kopi gemt på serveren: '+points+' point.';
+  status.textContent=receipt;
+  if(j.invalid){status.textContent=receipt+' Rundeloggen er ufuldstændig. Pointene er ikke verificeret.';return;}
+  if(!j.events.length)return;
+  try{
+   const verified=await scoreApi.checkpoint(id,j.nickname,j.events,Math.max(1,j.duration,Math.round(s.elapsed*1000)),{version:j.version,gameOver:false});
+   status.textContent=receipt+(verified===s.round.score?' Point bekræftet. Runden er stadig åben.':' Pointene stemmer ikke med rundeloggen.');
+  }catch{status.textContent=receipt+' Pointene kunne ikke bekræftes endnu.';}
+ }catch{status.textContent='Ingen bekræftet serverkopi. Gem en kopi i Filer, og prøv igen.';}
+ finally{button.disabled=false;}
+};
 function continueSaved(){
  if(!requirePlayerName(continueSaved))return;
  const s=readRound();if(!s){start();return;}
@@ -475,7 +523,7 @@ $('#play').disabled=true;
    preloadImages((done,total)=>{imageDone=done;imageTotal=total;progress();}),
    scoreApi.gameRules().then(r=>{availableSvendBonus=r?.svend_bonus===SVEND_BONUS?SVEND_BONUS:0;}).catch(()=>{}).finally(()=>{rulesDone=true;progress();})
   ]);
-  buildFamily();assetsReady=true;$('#play').disabled=false;$('#load-label').textContent='Klar til at spille · 100%';if(readRound()){$('#play').textContent='Spil videre';$('#restart-saved').hidden=false;}
+  buildFamily();assetsReady=true;$('#play').disabled=false;$('#load-label').textContent='Klar til at spille · 100%';if(readRound()){showCopyOptions(true);$('#play').textContent='Spil videre';$('#restart-saved').hidden=false;}
  }catch(err){failed=true;$('#load-label').textContent='Indlæsningen mislykkedes. Prøv igen.';$('#load-retry').hidden=false;}
 })();
 $('#load-retry').onclick=()=>location.reload();
