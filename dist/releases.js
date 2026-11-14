@@ -1,4 +1,6 @@
 export const RELEASES=[{
+ version:'1.3.0',date:'14. november 2026',changes:['På mobil står Næste til venstre og Score til højre. Vælg Venstre hånd i mobilindstillingerne for at bytte rundt.','Stryg op og slip, mens du sigter, for at annullere et drop.']
+},{
  version:'1.2.3',date:'14. november 2026',changes:['Vælger du Start forfra efter genåbning, afsluttes den gemte runde, så dens point kan tælle på highscoren.','Start forfra har fået ekstra afstand til pauseknappen og kræver altid bekræftelse.','Lange runder kan nu gemmes og tælle med efter 20.000 handlinger.']
 },{
  version:'1.2.2',date:'9. november 2026',changes:['Ugens og alle tiders highscore viser nu kun afsluttede runder. Du kan stadig gemme en runde undervejs og spille videre senere.']

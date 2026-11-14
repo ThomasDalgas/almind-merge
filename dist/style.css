@@ -487,3 +487,9 @@ body.touch-device:not(.playing){padding-top:calc(var(--safe-top) + 68px)}
 body.touch-device.playing main{--game-space:calc(var(--app-height,100dvh) - max(6px,var(--safe-top)) - max(10px,var(--safe-bottom)) - 60px);padding-top:calc(max(6px,var(--safe-top)) + 60px)}
 
 #restart{margin-inline-start:12px}#restart-saved{margin-top:10px}#restart-saved[hidden],body.started #restart-saved{display:none}
+
+body.touch-device.started:not([data-playing-hand="left"]) .next-card{order:-1}
+body:not(.touch-device) #settings-open{display:none}
+#cancel-drop{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:2;white-space:nowrap;border:2px solid #ffdc80;border-radius:20px;padding:6px 12px;background:#104957;color:white;font-weight:700;touch-action:none}
+#cancel-drop.armed{background:#87381a}
+#cancel-drop[hidden]{display:none}
