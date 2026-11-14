@@ -34,6 +34,8 @@ try{
   await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  }
  await swipe(0,-65);assert.equal(await drops(),0,'upward release cancels');
+ await p.waitForFunction(()=>Number(getComputedStyle(document.querySelector('#cancel-arrow')).opacity)>0);
+ await p.waitForFunction(()=>Number(getComputedStyle(document.querySelector('#cancel-arrow')).opacity)===0);
  await swipe(86,-65);assert.equal(await drops(),0,'diagonal upward release cancels too');
  await swipe(86,0);assert.equal(await drops(),1,'horizontal aim still releases exactly one tile');
  await p.locator('.next-card .swap-cards').tap();assert.equal(await cards(),'right');

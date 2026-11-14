@@ -5,7 +5,7 @@ import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.3.1';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.3.2';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,chainMultiplier,advanceDanger} from './rules.js?v=1.2.0';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
@@ -396,7 +396,7 @@ function cancelAt(e){
 canvas.addEventListener('pointerdown',e=>{
  if(mode!=='playing'||!e.isPrimary)return;e.preventDefault();
  if(removing){const r=canvas.getBoundingClientRect();removeAt((e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H);return;}
- ensureAudio();dragging=true;aimPointer=e.pointerId;updateAim(e);canvas.setPointerCapture(e.pointerId);
+ $('#cancel-arrow').getAnimations().forEach(animation=>animation.cancel());ensureAudio();dragging=true;aimPointer=e.pointerId;updateAim(e);canvas.setPointerCapture(e.pointerId);
  if(e.pointerType==='touch')touchStart=e.clientY;
 });
 canvas.addEventListener('pointermove',e=>{
@@ -406,7 +406,14 @@ canvas.addEventListener('pointermove',e=>{
 });
 canvas.addEventListener('pointerup',e=>{
  if(!dragging||e.pointerId!==aimPointer)return;e.preventDefault();
- const cancel=cancelAt(e);updateAim(e);clearAim();if(!cancel)drop();
+ const cancel=cancelAt(e);updateAim(e);clearAim();
+ if(!cancel){drop();return;}
+ const arrow=$('#cancel-arrow'),box=arrow.parentElement.getBoundingClientRect();
+ arrow.style.left=Math.max(12,Math.min(box.width-16,e.clientX-box.left))+'px';
+ arrow.style.top=Math.max(26,Math.min(box.height-4,e.clientY-box.top-8))+'px';
+ arrow.getAnimations().forEach(animation=>animation.cancel());
+ arrow.animate([{opacity:1},{opacity:1,offset:.45},{opacity:0}],{duration:440});
+
 });
 for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListener(event,e=>{if(e.pointerId===aimPointer)clearAim();});
 canvas.addEventListener('touchmove',e=>{if(mode==='playing')e.preventDefault();},{passive:false});

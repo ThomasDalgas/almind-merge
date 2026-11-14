@@ -1,4 +1,6 @@
 export const RELEASES=[{
+ version:'1.3.2',date:'14. november 2026',changes:['En lille rød pil vises kort, når du stryger op og slipper for at annullere et drop.']
+},{
  version:'1.3.1',date:'14. november 2026',changes:['Tryk på Næste eller Score for at bytte deres plads på mobilen. Spillet husker placeringen.','På mobil kan du nu sigte uden en besked over brikken. Stryg op og slip for at annullere som før.']
 },{
  version:'1.3.0',date:'14. november 2026',changes:['På mobil står Næste til venstre og Score til højre. Vælg Venstre hånd i mobilindstillingerne for at bytte rundt.','Stryg op og slip, mens du sigter, for at annullere et drop.']

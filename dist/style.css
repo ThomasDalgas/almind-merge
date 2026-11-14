@@ -493,3 +493,5 @@ body.touch-device.started:not([data-playing-hand="left"]) .next-card{order:-1}
 body.touch-device.started :is(.score-card,.next-card){position:relative}
 body.touch-device.started .swap-cards{display:block;position:absolute;inset:0;z-index:1;width:100%;height:100%;border:0;border-radius:inherit;background:transparent;touch-action:manipulation;cursor:pointer}
 .swap-cards:focus-visible{outline:2px solid #086275;outline-offset:-3px}
+
+#cancel-arrow{position:absolute;pointer-events:none;opacity:0;color:#bc2838;filter:drop-shadow(0 1px 1px white);transform:translate(-50%,-100%)}
