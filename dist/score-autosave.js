@@ -38,7 +38,7 @@ export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},ge
     if(item.duration>now()-item.ticket.readyAt+1000)continue;
     const count=item.events.length,final=item.final,duration=item.duration,events=item.events.map(e=>[...e]);
     const save=final?(item.gameOverAt&&now()-item.gameOverAt<60000&&api.gameOver?api.gameOver:api.submit):api.checkpoint;
-    const score=await save(item.ticket.id,item.nickname,events,duration,{version:item.version??null,gameOver:Boolean(item.gameOverAt)});
+    const score=await save(item.ticket.id,item.nickname,events,duration,{version:item.version??null,gameOver:Boolean(item.gameOverAt),...(item.recovery?{recovery:item.recovery}:{})});
     item.savedCount=count;item.savedFinal=final;item.savedDuration=duration;
     onStatus(`Din score på ${new Intl.NumberFormat('da-DK').format(score)} er gemt!`);
     if(item.events.length===count&&item.final===final&&item.duration===duration){

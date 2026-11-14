@@ -5,7 +5,7 @@ import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.4.1';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.4.2';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,chainMultiplier,advanceDanger} from './rules.js?v=1.2.0';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
@@ -320,6 +320,7 @@ function copySource(){
  return mode==='paused'?captureRound():mode==='ready'?readRound():null;
 }
 function showCopyOptions(show){
+ $('#recover-round').hidden=!(show&&copySource()?.journal?.invalid);
  $('#round-copy').open=false;$('#round-copy').hidden=!show;
  $('#sync-status').textContent='';
 }
@@ -351,11 +352,42 @@ $('#sync-round').onclick=async()=>{
   if(j.invalid){status.textContent=receipt+' Rundeloggen er ufuldstændig. Pointene er ikke verificeret.';return;}
   if(!j.events.length)return;
   try{
-   const verified=await scoreApi.checkpoint(id,j.nickname,j.events,Math.max(1,j.duration,Math.round(s.elapsed*1000)),{version:j.version,gameOver:false});
+   const verified=await scoreApi.checkpoint(id,j.nickname,j.events,Math.max(1,j.duration,Math.round(s.elapsed*1000)),{version:j.version,gameOver:false,...(j.recovery?{recovery:j.recovery}:{})});
    status.textContent=receipt+(verified===s.round.score?' Point bekræftet. Runden er stadig åben.':' Pointene stemmer ikke med rundeloggen.');
   }catch{status.textContent=receipt+' Pointene kunne ikke bekræftes endnu.';}
  }catch{status.textContent='Ingen bekræftet serverkopi. Gem en kopi i Filer, og prøv igen.';}
  finally{button.disabled=false;}
+};
+let recoveryOffer=null;
+$('#recover-round').onclick=async()=>{
+ const status=$('#sync-status'),s=copySource(),id=s?.journal.ticket?.id;if(!id||!s.journal.invalid)return;
+ const button=$('#recover-round');button.disabled=true;
+ try{
+  const offer=await scoreApi.recovery(id),current=copySource();
+  if(!current?.journal.invalid||current.journal.ticket?.id!==id)return;
+  if(!offer||offer.snapshot?.journal?.ticket?.id!==id){status.textContent='Ingen godkendt kopi til denne runde.';return;}
+  if(offer.server_cursor!==offer.cursor){status.textContent='Runden er allerede fortsat fra kopien. Brug den nyeste spilleplade.';return;}
+  recoveryOffer=offer;
+  $('#recovery-description').textContent='Kopien har '+numberFormat.format(offer.score)+' point. Din lokale runde har '+numberFormat.format(current.round.score)+' point. Du fortsætter fra kopiens brikker og point. Din nuværende spilleplade gemmes separat først.';
+  $('#recovery-confirm').showModal();
+ }catch{status.textContent='Kopien kunne ikke hentes. Din lokale runde er uændret.';}
+ finally{button.disabled=false;}
+};
+$('#use-recovery').onclick=()=>{
+ const offer=recoveryOffer,current=copySource();if(!offer||!current)return;
+ const s=offer.snapshot,j=fromStorage(s.journal);
+ if(!current.journal.invalid||current.journal.ticket?.id!==j.ticket?.id||j.events.length!==offer.cursor||s.round.score!==offer.score)return;
+ try{
+  const original=JSON.stringify({...current,journal:forStorage(current.journal)});
+  localStorage.setItem('almind-before-recovery:'+offer.id,original);
+  j.recovery=offer.id;j.invalid=false;j.savedCount=offer.cursor;j.savedDuration=j.duration;j.savedFinal=false;
+  for(const tile of s.tiles)delete tile.chain;
+  localStorage.setItem(saveKey(),JSON.stringify({...s,journal:forStorage(j)}));
+ }catch{$('#recovery-confirm').close();$('#sync-status').textContent='Der var ikke plads til en sikker kopi. Din runde er uændret.';return;}
+ recoveryOffer=null;$('#recovery-confirm').close();
+ // Reuse the normal resume path, without starting or finishing a ticket.
+ Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];fireworks=[];dropPreview=null;
+ mode='ready';continueSaved();
 };
 function continueSaved(){
  if(!requirePlayerName(continueSaved))return;

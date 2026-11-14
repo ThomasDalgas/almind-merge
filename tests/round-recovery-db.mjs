@@ -1,0 +1,35 @@
+import fs from 'node:fs/promises';import assert from 'node:assert/strict';
+const {PGlite}=await import(process.env.PGLITE_MODULE);const db=new PGlite();
+await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key,email_confirmed_at timestamptz default now(),is_anonymous boolean default false);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;`);
+for(const f of (await fs.readdir(new URL('../supabase/migrations/',import.meta.url))).sort())await db.exec(await fs.readFile(new URL('../supabase/migrations/'+f,import.meta.url),'utf8'));
+const id='00000000-0000-4000-8000-000000000001';await db.query('insert into auth.users(id) values($1)',[id]);await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated');await db.query("select public.am_claim_name('Thomas')");
+const ticket=(await db.query('select public.am_start_round() as id')).rows[0].id;
+await db.exec('reset role');await db.query("update public.am_rounds set started_at=now()-interval '48 days' where id=$1",[ticket]);await db.exec('set role authenticated');
+
+
+const baseline={round:{score:300006,maxTier:8,drops:605,lastDrop:700},elapsed:1000,time:995,rewardLevel:50,powers:{shake:4,remove:3},tiles:[{tier:1},{tier:1},{tier:0}],journal:{key:'test',nickname:'Thomas',ticket:{id:ticket},invalid:true,final:false,eventBlocks:Array(39).fill('fixture'),tail:Array(32).fill(['d',0,0])}};
+const recover=async(t=ticket)=>(await db.query('select public.am_round_recovery($1) as r',[t])).rows[0].r;
+const saveLegacy=()=>db.query("select public.am_save_round_logged($1,'Thomas',$2,1,'checkpoint','1.2.1',false)",[ticket,JSON.stringify([['d',0,0]])]);
+const normal=()=>db.query("select public.am_stream_round($1,0,'[]',1,'part','1.4.0',false)",[ticket]);
+await saveLegacy();await db.query('select public.am_put_round_backup($1,10,$2)',[ticket,JSON.stringify(baseline)]);
+assert.equal(await recover(),null);
+await db.exec('reset role');
+const {rows:[{digest}]}=await db.query("select encode(sha256(convert_to(snapshot::text,'UTF8')),'hex') as digest from public.am_round_backups where round_id=$1",[ticket]);
+const template=await fs.readFile(new URL('../supabase/maintenance/approve-round-recovery.template.sql',import.meta.url),'utf8');
+const application=template.replace('ROUND_UUID',ticket).replace('BACKUP_REVISION','10').replace('APPROVED_SCORE','300006').replace('PLAYER_NAME','Thomas').replace('PREVIOUS_SCORE','2').replace('SNAPSHOT_SHA256',digest);
+await assert.rejects(db.exec(application.replace(digest,'wrong')),/preconditions/);await db.exec(application);await assert.rejects(db.exec(application),/preconditions|conflict/);
+await db.exec('set role authenticated');const approved=await recover();assert.equal(approved.cursor,20000);assert.equal(approved.server_cursor,20000);assert.equal(approved.score,300006);assert.deepEqual(approved.snapshot,baseline);
+const push=async(o,events,kind='checkpoint',ms=1001000,recovery=approved.id)=>(await db.query("select public.am_stream_recovered_round($1,$2,$3,$4,$5,$6,'1.4.2',$7) as r",[recovery,ticket,o,JSON.stringify(events),ms,kind,kind==='gameover'])).rows[0].r;
+await assert.rejects(saveLegacy(),/Approved recovery/);await assert.rejects(normal(),/Approved recovery/);
+await assert.rejects(db.query('select * from public.am_round_recoveries'),/permission denied/);
+await assert.rejects(db.query("select public.am_replay_stream_private($1,0,'[]',1,'part','1.4.2',false)",[ticket]),/permission denied/);
+await assert.rejects(push(20000,[],'checkpoint',1000000,'00000000-0000-4000-8000-000000000999'),/Unknown recovery/);
+const board=async()=>(await db.query("select score from public.am_leaderboard_v2('all')")).rows;
+assert.deepEqual(await board(),[]);
+const next=await push(20000,[['m',1,1000100,995100,0,0],['d',0,1000110,995110,0,0],['m',0,1000120,995120,0,0],['r',2,1000130,995130,20001,0]]);
+assert.equal(next.score,300020);assert.equal(next.cursor,20004);assert.equal((await recover()).server_cursor,20004);assert.deepEqual(await board(),[]);
+const user2='00000000-0000-4000-8000-000000000002';await db.exec('reset role');await db.query('insert into auth.users(id) values($1)',[user2]);await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user2]);await db.exec('set role authenticated');assert.equal(await recover(),null);await assert.rejects(push(20000,[],'part'),/Unknown recovery/);
+await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await push(20004,[],'gameover');await push(20004,[],'gameover');assert.deepEqual(await board(),[{score:300020}]);assert.equal(await recover(),null);
+const ordinary=(await db.query('select public.am_start_round() as id')).rows[0].id;
+assert.equal((await db.query("select public.am_submit_round($1,'Thomas',$2,1) as s",[ordinary,JSON.stringify([['d',0,0]])])).rows[0].s,2);
+console.log('PASS reviewed one-off snapshot, owner isolation, private replay, legacy blocks, handoff cursor, zero-ref stock, future validated merges and final/ordinary fallbacks');await db.close();
