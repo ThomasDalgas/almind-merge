@@ -5,7 +5,7 @@ import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.3.0';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.3.1';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,chainMultiplier,advanceDanger} from './rules.js?v=1.2.0';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
@@ -386,36 +386,29 @@ function render(){
 let last=performance.now(),acc=0;
 function frame(now){const elapsed=Math.min(.08,(now-last)/1000);last=now;if(mode==='playing'){acc+=elapsed;while(acc>=1/60){step(1/60);acc-=1/60;}}else acc=0;render();requestAnimationFrame(frame);}
 function updateAim(event){const rect=canvas.getBoundingClientRect();aim=(event.clientX-rect.left)/rect.width*W;}
-const cancelDrop=$('#cancel-drop');
 let aimPointer=null,touchStart=null;
 function clearAim(){
- dragging=false;aimPointer=null;touchStart=null;cancelDrop.hidden=true;cancelDrop.classList.remove('armed');
+ dragging=false;aimPointer=null;touchStart=null;
 }
 function cancelAt(e){
- if(!touchStart)return false;
- const r=cancelDrop.getBoundingClientRect();
- const over=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
- return touchStart.y-e.clientY>=48 || (over&&Math.hypot(e.clientX-touchStart.x,e.clientY-touchStart.y)>10);
+ return touchStart!==null&&touchStart-e.clientY>=48;
 }
 canvas.addEventListener('pointerdown',e=>{
  if(mode!=='playing'||!e.isPrimary)return;e.preventDefault();
  if(removing){const r=canvas.getBoundingClientRect();removeAt((e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H);return;}
  ensureAudio();dragging=true;aimPointer=e.pointerId;updateAim(e);canvas.setPointerCapture(e.pointerId);
- if(e.pointerType==='touch'){touchStart={x:e.clientX,y:e.clientY};cancelDrop.textContent='↑ Stryg op for at annullere';cancelDrop.hidden=false;}
+ if(e.pointerType==='touch')touchStart=e.clientY;
 });
 canvas.addEventListener('pointermove',e=>{
  if(mode!=='playing')return;
- if(dragging&&e.pointerId===aimPointer){updateAim(e);if(touchStart){
-  const armed=cancelAt(e);cancelDrop.classList.toggle('armed',armed);cancelDrop.textContent=armed?'Slip for at annullere':'↑ Stryg op for at annullere';
- }}else if(!dragging&&e.pointerType==='mouse')updateAim(e);
+ if(dragging&&e.pointerId===aimPointer)updateAim(e);
+ else if(!dragging&&e.pointerType==='mouse')updateAim(e);
 });
 canvas.addEventListener('pointerup',e=>{
  if(!dragging||e.pointerId!==aimPointer)return;e.preventDefault();
  const cancel=cancelAt(e);updateAim(e);clearAim();if(!cancel)drop();
 });
 for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListener(event,e=>{if(e.pointerId===aimPointer)clearAim();});
-cancelDrop.onpointerdown=e=>{e.preventDefault();clearAim();};
-cancelDrop.onclick=clearAim;
 canvas.addEventListener('touchmove',e=>{if(mode==='playing')e.preventDefault();},{passive:false});
 document.addEventListener('keydown',e=>{if(document.querySelector('dialog[open]')||/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName))return;if(['ArrowLeft','ArrowRight',' ','Enter','p','P'].includes(e.key))e.preventDefault();if(e.key==='p'||e.key==='P'){if(!e.repeat)mode==='playing'?pause():resume();return;}if(mode==='playing'){keys.add(e.key);if((e.key===' '||e.key==='Enter')&&!e.repeat)drop();}});
 document.addEventListener('keyup',e=>keys.delete(e.key));document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});window.addEventListener('blur',()=>{keys.clear();pause();});
@@ -425,11 +418,12 @@ let resumeAfterDialog=false;
 function openDialog(id){resumeAfterDialog=mode==='playing';pause();$('#'+id).showModal();}
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$('#'+b.dataset.close).close());
 document.querySelectorAll('dialog').forEach(d=>d.addEventListener('close',()=>{stopSounds();if(resumeAfterDialog){resumeAfterDialog=false;resume();}}));
-const handSelect=$('#playing-hand');
-function applyHand(hand){handSelect.value=hand==='left'?'left':'right';document.body.dataset.playingHand=handSelect.value;}
-try{applyHand(localStorage.getItem('almind-playing-hand'));}catch{applyHand('right');}
-handSelect.onchange=()=>{applyHand(handSelect.value);try{localStorage.setItem('almind-playing-hand',handSelect.value);}catch{}};
-$('#settings-open').onclick=()=>openDialog('mobile-settings');
+// Keep the existing preference so returning players retain their layout.
+try{document.body.dataset.playingHand=localStorage.getItem('almind-playing-hand')==='left'?'left':'right';}catch{}
+for(const button of document.querySelectorAll('.swap-cards'))button.onclick=()=>{
+ const side=document.body.dataset.playingHand==='left'?'right':'left';
+ document.body.dataset.playingHand=side;try{localStorage.setItem('almind-playing-hand',side);}catch{}
+};
 $('#how-open').onclick=()=>openDialog('how');
 function requestRestart(){
  if(!assetsReady)return;

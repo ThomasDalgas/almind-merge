@@ -36,12 +36,11 @@ try{
  await swipe(0,-65);assert.equal(await drops(),0,'upward release cancels');
  await swipe(86,-65);assert.equal(await drops(),0,'diagonal upward release cancels too');
  await swipe(86,0);assert.equal(await drops(),1,'horizontal aim still releases exactly one tile');
- await p.locator('#pause').tap();await p.locator('#settings-open').tap();
- assert.equal(await p.locator('#playing-hand').inputValue(),'right');
- await p.locator('#playing-hand').selectOption('left');await p.keyboard.press('Escape');
- await p.reload();await p.waitForFunction(()=>window.__mergeTest?.ready);
- await p.locator('#settings-open').tap();assert.equal(await p.locator('#playing-hand').inputValue(),'left','user preference survives reload');
- await p.keyboard.press('Escape');await play();assert.equal(await cards(),'right','left-handed setting places next tile at right');assert.equal(await drops(),1,'hand preference does not reset the round');
+ await p.locator('.next-card .swap-cards').tap();assert.equal(await cards(),'right');
+ await p.locator('.score-card .swap-cards').tap();assert.equal(await cards(),'left');
+ await p.locator('.score-card .swap-cards').tap();assert.equal(await cards(),'right');
+ await p.reload();await play();assert.equal(await cards(),'right','card order survives reload');
+ assert.equal(await drops(),1,'tapping cards does not drop a tile or reset the round');
  await p.evaluate(()=>__mergeTest.advance(.6));await swipe(-65,10);assert.equal(await drops(),2,'left-handed horizontal movement still drops');
  assert.deepEqual(errors,[]);console.log('PASS mobile handedness default, swap and persistence, upward and diagonal cancel, horizontal drop, saved round unchanged');
 }finally{await browser.close();}

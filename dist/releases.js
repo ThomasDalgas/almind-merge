@@ -1,4 +1,6 @@
 export const RELEASES=[{
+ version:'1.3.1',date:'14. november 2026',changes:['Tryk på Næste eller Score for at bytte deres plads på mobilen. Spillet husker placeringen.','På mobil kan du nu sigte uden en besked over brikken. Stryg op og slip for at annullere som før.']
+},{
  version:'1.3.0',date:'14. november 2026',changes:['På mobil står Næste til venstre og Score til højre. Vælg Venstre hånd i mobilindstillingerne for at bytte rundt.','Stryg op og slip, mens du sigter, for at annullere et drop.']
 },{
  version:'1.2.3',date:'14. november 2026',changes:['Vælger du Start forfra efter genåbning, afsluttes den gemte runde, så dens point kan tælle på highscoren.','Start forfra har fået ekstra afstand til pauseknappen og kræver altid bekræftelse.','Lange runder kan nu gemmes og tælle med efter 20.000 handlinger.']
