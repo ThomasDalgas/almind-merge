@@ -5,7 +5,7 @@ import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.4.2';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.5.0';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,chainMultiplier,advanceDanger} from './rules.js?v=1.2.0';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
@@ -413,10 +413,28 @@ function start(){
   activeSaveKey=saveKey();scoreRoundStart(previousSeconds);flushScore();
   ensureAudio();if(audioCtx){recordedBuffer('assets/game-over-voice.m4a').catch(()=>{});recordedBuffer('assets/danger-riser.m4a').catch(()=>{});}
   document.body.classList.add('started');fireworks=[];dangerProgress=0;$('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');
-  dropPreview=null;rewardNotices.clear();stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound(availableSvendBonus);powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';lockPlayScreen(true);showCopyOptions(false);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');saveRound();setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
+  dropPreview=null;rewardNotices.clear();stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound(availableSvendBonus);powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';phonePause(false);lockPlayScreen(true);showCopyOptions(false);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');saveRound();setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
 }
-function pause(){if(mode!=='playing')return;playClock.pause();syncClock();mode='paused';saveRound();cancelRemove();lockPlayScreen(false);flushScore();refreshLeaderboard();keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');livePlayers.changed();}
-function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;playClock.resume();mode='playing';syncPowers();lockPlayScreen(true);showCopyOptions(false);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();}
+const phoneLayout=matchMedia('(max-width:600px) and (orientation:portrait)');
+const isPhone=()=>phoneLayout.matches&&document.body.classList.contains('touch-device');
+const pauseSlots=new Map();
+function phonePause(show){
+ const menu=$('#phone-pause');show=show&&isPhone();
+ if(show===!menu.hidden)return;
+ menu.hidden=!show;document.body.classList.toggle('phone-paused',show);
+ if(show){
+  $('#paused-score').textContent=$('#score').textContent;$('#paused-time').textContent=$('#play-time').textContent;
+  for(const node of document.querySelectorAll('.highscore-controls,#highscore-status,#highscore-list,#round-copy')){
+   const slot=document.createComment('pause');node.before(slot);pauseSlots.set(node,slot);$('#pause-scores').append(node);
+  }
+  $('#phone-resume').focus();
+ }else{for(const [node,slot] of pauseSlots)slot.replaceWith(node);pauseSlots.clear();}
+}
+phoneLayout.addEventListener('change',()=>phonePause(mode==='paused'));
+$('#phone-resume').onclick=()=>resume();$('#phone-rules').onclick=()=>openDialog('how');
+$('#phone-home').onclick=()=>$('.main-home').click();$('#phone-restart').onclick=()=>requestRestart();
+function pause(){if(mode!=='playing')return;playClock.pause();syncClock();mode='paused';saveRound();cancelRemove();lockPlayScreen(false);flushScore();refreshLeaderboard();keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');clearAim();phonePause(true);livePlayers.changed();}
+function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;playClock.resume();mode='playing';syncPowers();phonePause(false);lockPlayScreen(true);showCopyOptions(false);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();}
 function end(){if(mode==='over')return;playClock.pause();syncClock();mode='over';try{localStorage.removeItem(activeSaveKey);}catch{}activeSaveKey=null;mobileDisplay.leave();fireworks=[];cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);$('#game-over-logo').hidden=false;$('#overlay').classList.add('game-over');gameOverSound();scoreRoundEnd(round,playSeconds());livePlayers.changed();}
 function step(dt){
   if(mode!=='playing')return;time+=dt;if(shakeUntil&&time<shakeUntil){const pulse=Math.floor((time-(shakeUntil-.65))/.16);if(pulse>shakePulse){shakePulse=pulse;shakeKick(pulse%2?-1:1);}}if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
@@ -466,26 +484,37 @@ function render(){
 let last=performance.now(),acc=0;
 function frame(now){const elapsed=Math.min(.08,(now-last)/1000);last=now;if(mode==='playing'){acc+=elapsed;while(acc>=1/60){step(1/60);acc-=1/60;}}else acc=0;render();requestAnimationFrame(frame);}
 function updateAim(event){const rect=canvas.getBoundingClientRect();aim=(event.clientX-rect.left)/rect.width*W;}
-let aimPointer=null,touchStart=null;
+let aimPointer=null,touchStart=null,cardTouch=null;
 function clearAim(){
- dragging=false;aimPointer=null;touchStart=null;
+ dragging=false;aimPointer=null;touchStart=null;cardTouch=null;
 }
 function cancelAt(e){
  return touchStart!==null&&touchStart-e.clientY>=48;
 }
-canvas.addEventListener('pointerdown',e=>{
+let suppressCardClick=null;
+document.addEventListener('click',e=>{if(e.detail&&suppressCardClick&&suppressCardClick.contains(e.target)){e.preventDefault();e.stopImmediatePropagation();suppressCardClick=null;}},true);
+document.addEventListener('pointerdown',e=>{
+ suppressCardClick=null;
+ const board=e.target===canvas,card=e.target.closest('.swap-cards');
+ if(!board&&!(isPhone()&&e.pointerType==='touch'&&e.clientY>=canvas.getBoundingClientRect().bottom&&(card||!e.target.closest('a,button,input,dialog,summary'))))return;
+ if(!board&&removing)return;
  if(mode!=='playing'||!e.isPrimary)return;e.preventDefault();
  if(removing){const r=canvas.getBoundingClientRect();removeAt((e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H);return;}
- $('#cancel-arrow').getAnimations().forEach(animation=>animation.cancel());ensureAudio();dragging=true;aimPointer=e.pointerId;updateAim(e);canvas.setPointerCapture(e.pointerId);
+ $('#cancel-arrow').getAnimations().forEach(animation=>animation.cancel());ensureAudio();dragging=true;aimPointer=e.pointerId;if(card)cardTouch={x:e.clientX,y:e.clientY,button:card};else updateAim(e);(card||canvas).setPointerCapture(e.pointerId);
  if(e.pointerType==='touch')touchStart=e.clientY;
 });
-canvas.addEventListener('pointermove',e=>{
+document.addEventListener('pointermove',e=>{
  if(mode!=='playing')return;
- if(dragging&&e.pointerId===aimPointer)updateAim(e);
- else if(!dragging&&e.pointerType==='mouse')updateAim(e);
+ if(dragging&&e.pointerId===aimPointer){
+  if(cardTouch&&Math.hypot(e.clientX-cardTouch.x,e.clientY-cardTouch.y)<8)return;
+  cardTouch=null;updateAim(e);
+ }
+ else if(!dragging&&e.target===canvas&&e.pointerType==='mouse')updateAim(e);
 });
-canvas.addEventListener('pointerup',e=>{
+document.addEventListener('pointerup',e=>{
  if(!dragging||e.pointerId!==aimPointer)return;e.preventDefault();
+ if(cardTouch&&Math.hypot(e.clientX-cardTouch.x,e.clientY-cardTouch.y)<8){clearAim();return;}
+ if(e.target.closest('.swap-cards'))suppressCardClick=e.target.closest('.swap-cards');
  const cancel=cancelAt(e);updateAim(e);clearAim();
  if(!cancel){drop();return;}
  const arrow=$('#cancel-arrow'),box=arrow.parentElement.getBoundingClientRect();
@@ -495,7 +524,7 @@ canvas.addEventListener('pointerup',e=>{
  arrow.animate([{opacity:1},{opacity:1,offset:.45},{opacity:0}],{duration:440});
 
 });
-for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListener(event,e=>{if(e.pointerId===aimPointer)clearAim();});
+for(const event of ['pointercancel','lostpointercapture'])document.addEventListener(event,e=>{if(e.pointerId===aimPointer)clearAim();});
 canvas.addEventListener('touchmove',e=>{if(mode==='playing')e.preventDefault();},{passive:false});
 document.addEventListener('keydown',e=>{if(document.querySelector('dialog[open]')||/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName))return;if(['ArrowLeft','ArrowRight',' ','Enter','p','P'].includes(e.key))e.preventDefault();if(e.key==='p'||e.key==='P'){if(!e.repeat)mode==='playing'?pause():resume();return;}if(mode==='playing'){keys.add(e.key);if((e.key===' '||e.key==='Enter')&&!e.repeat)drop();}});
 document.addEventListener('keyup',e=>keys.delete(e.key));document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});window.addEventListener('blur',()=>{keys.clear();pause();});

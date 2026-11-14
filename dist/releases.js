@@ -1,4 +1,6 @@
 export const RELEASES=[{
+ version:'1.5.0',date:'14. november 2026',changes:['På telefonen fylder banen mere. Spilvælger og highscore findes i pausen.','Brug området under banen til at sigte og slippe. Stryg op for at annullere, eller tap på Score eller Næste for at bytte plads.']
+},{
  version:'1.4.2',date:'14. november 2026',changes:['En runde med en ufuldstændig gammel log kan fortsætte fra en godkendt sikkerhedskopi. Nye point tæller med på samme runde.']
 },{
  version:'1.4.1',date:'14. november 2026',changes:['Gem kopi og Synk til server ligger nu i menuen Backup og synk under highscoren.']
