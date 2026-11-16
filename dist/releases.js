@@ -1,4 +1,6 @@
 export const RELEASES=[{
+ version:'1.5.2',date:'16. november 2026',changes:['Når du fortsætter en åben runde, vises dine point igen i Spiller nu, også når runden er mere end 24 timer gammel.']
+},{
  version:'1.5.1',date:'14. november 2026',changes:['Spillebanen, Score og Næste har nu samme blågrønne kant på telefon, tablet og computer. Der er mere luft mellem banen og felterne på touchskærme.','På telefonen er spillet rykket lidt ned, så Ryst og Fjern får mere plads under statuslinjen. Highscoren i pausen har fået mørkere tekst.','Når du stryger op og annullerer et drop, vises den røde pil lige over brikken, også når du bruger området under banen.']
 },{
  version:'1.5.0',date:'14. november 2026',changes:['På telefonen fylder banen mere. Spilvælger og highscore findes i pausen.','Brug området under banen til at sigte og slippe. Stryg op for at annullere, eller tap på Score eller Næste for at bytte plads.']
