@@ -34,3 +34,32 @@ test('active duration checkpoints advance even without more scoring events',asyn
 test('Recovered log retains original version and actual Game Over even after notice expires',async()=>{
  const f=fixture();f.getVersion=()=> '1.1.4';const s=createScoreAutosave(f);await s.start('Thomas');s.event('d',0,0);f.api.ready=false;s.end(.5);f.advance(61000);f.api.ready=true;f.getVersion=()=> '2.0.0';await createScoreAutosave(f).flush();assert.deepEqual(f.calls.at(-1)[5],{version:'1.1.4',gameOver:true});
 });
+
+test('full finished copy survives offline reload and score mismatch; exact final confirmation removes it',async()=>{
+ const f=fixture(),s=createScoreAutosave(f);await s.start('Rikke');s.event('d',0,0);
+ const key=s.snapshot().key,archiveKey='almind-finished-round:'+key;
+ f.data.set(archiveKey,JSON.stringify({round:{score:9},tiles:[{tier:2}]}));
+ f.offline(true);s.end(.5);await new Promise(r=>setImmediate(r));
+ assert.ok(f.data.has(archiveKey));
+ f.offline(false);const reloaded=createScoreAutosave(f);await reloaded.flush();
+ assert.ok(f.data.has(archiveKey),'wrong server score cannot discard full copy');
+ assert.ok(f.data.has('almind-score-pending:'+key),'mismatch keeps retry log');
+ f.api.submit=async()=>9;await reloaded.flush();
+ assert.equal(f.data.has(archiveKey),false);
+ assert.equal(f.data.has('almind-score-pending:'+key),false);
+});
+test('checkpoint confirmation cannot delete a finished copy while final upload waits',async()=>{
+ const f=fixture();let resolve;f.api.checkpoint=()=>new Promise(r=>resolve=r);
+ const s=createScoreAutosave(f);await s.start('David');s.event('d',0,0);const key=s.snapshot().key;
+ const upload=s.flush();f.data.set('almind-finished-round:'+key,JSON.stringify({round:{score:8}}));
+ s.end(.5);resolve(8);await upload;
+ assert.ok(f.data.has('almind-finished-round:'+key));await s.flush();
+ assert.equal(f.data.has('almind-finished-round:'+key),false);
+});
+test('invalid legacy log retains full finished copy and never submits incomplete history',async()=>{
+ const f=fixture(),s=createScoreAutosave(f);await s.start('David');s.event('d',0,0);
+ const state=s.snapshot();s.restore({...state,invalid:true});
+ f.data.set('almind-finished-round:'+state.key,JSON.stringify({round:{score:5000000}}));
+ s.end(.5);await s.flush();
+ assert.equal(f.calls.length,0);assert.ok(f.data.has('almind-finished-round:'+state.key));
+});

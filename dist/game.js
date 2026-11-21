@@ -1,11 +1,12 @@
 import {forStorage,fromStorage} from './journal-storage.js?v=1.4.0';
 import {createPlayClock,formatPlayTime} from './play-time.js?v=resume1';
+import {preserveFinished,FINISHED_PREFIX} from './finished-rounds.js?v=1.5.3';
 import {earnedPowers,createRewardNotices} from './reward-notices.js?v=gameover-notices-v1';
 import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.5.2';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.5.3';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,chainMultiplier,advanceDanger} from './rules.js?v=1.2.0';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
@@ -316,6 +317,24 @@ function saveRound(){
   localStorage.setItem(activeSaveKey,JSON.stringify({...s,journal:forStorage(s.journal)}));lastSaveTime=time;
  }catch{}
 }
+function protectFinished(snapshot){
+ if(!snapshot)return true;
+ try{preserveFinished(localStorage,snapshot);return true;}
+ catch{
+  pause();
+  alert('Der er ikke plads til at sikre hele runden. Runden er beholdt. Brug Backup og synk → Gem kopi i Filer, før du fortsætter.');
+  return false;
+ }
+}
+$('#export-finished').onclick=()=>{
+ try{
+  const rounds=Object.keys(localStorage).filter(k=>k.startsWith(FINISHED_PREFIX)).map(k=>JSON.parse(localStorage.getItem(k)));
+  if(!rounds.length){$('#finished-status').textContent='Ingen afsluttede runder venter på bekræftelse.';return;}
+  const url=URL.createObjectURL(new Blob([JSON.stringify({format:'almind-merge-finished-rounds',version:1,rounds})],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download='Almind-Merge-afsluttede-runder.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
+  $('#finished-status').textContent='Gem kopien i Filer. Kopierne bliver på denne enhed, indtil pointene er bekræftet.';
+ }catch{$('#finished-status').textContent='Kopien kunne ikke eksporteres. Behold spillets data på enheden.';}
+};
 function copySource(){
  return mode==='paused'?captureRound():mode==='ready'?readRound():null;
 }
@@ -408,6 +427,7 @@ function start(){
   ensureAudio();if(!requirePlayerName(start))return;
   playClock.pause();
   const previous=mode==='ready'?readRound():null;
+  if(!protectFinished(previous||captureRound()))return;
   if(previous)restoreScore({...previous.journal,duration:Math.max(previous.journal.duration,Math.round(previous.elapsed*1000))});
   const previousSeconds=previous?.elapsed??playSeconds();playClock.start();
   activeSaveKey=saveKey();scoreRoundStart(previousSeconds);flushScore();
@@ -435,7 +455,7 @@ $('#phone-resume').onclick=()=>resume();$('#phone-rules').onclick=()=>openDialog
 $('#phone-home').onclick=()=>$('.main-home').click();$('#phone-restart').onclick=()=>requestRestart();
 function pause(){if(mode!=='playing')return;playClock.pause();syncClock();mode='paused';saveRound();cancelRemove();lockPlayScreen(false);flushScore();refreshLeaderboard();keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');clearAim();phonePause(true);livePlayers.changed();}
 function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;playClock.resume();mode='playing';syncPowers();phonePause(false);lockPlayScreen(true);showCopyOptions(false);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();}
-function end(){if(mode==='over')return;playClock.pause();syncClock();mode='over';try{localStorage.removeItem(activeSaveKey);}catch{}activeSaveKey=null;mobileDisplay.leave();fireworks=[];cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);$('#game-over-logo').hidden=false;$('#overlay').classList.add('game-over');gameOverSound();scoreRoundEnd(round,playSeconds());livePlayers.changed();}
+function end(){if(mode==='over')return;if(!protectFinished(captureRound()))return;playClock.pause();syncClock();mode='over';try{localStorage.removeItem(activeSaveKey);}catch{}activeSaveKey=null;mobileDisplay.leave();fireworks=[];cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);$('#game-over-logo').hidden=false;$('#overlay').classList.add('game-over');gameOverSound();scoreRoundEnd(round,playSeconds());livePlayers.changed();}
 function step(dt){
   if(mode!=='playing')return;time+=dt;if(shakeUntil&&time<shakeUntil){const pulse=Math.floor((time-(shakeUntil-.65))/.16);if(pulse>shakePulse){shakePulse=pulse;shakeKick(pulse%2?-1:1);}}if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
   if(keys.has('ArrowLeft'))aim-=260*dt;if(keys.has('ArrowRight'))aim+=260*dt;

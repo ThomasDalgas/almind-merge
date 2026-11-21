@@ -1,3 +1,4 @@
+import {FINISHED_PREFIX} from './finished-rounds.js?v=1.5.3';
 import {forStorage,fromStorage} from './journal-storage.js?v=1.4.0';
 // Persist each round independently so tabs and unfinished uploads cannot overwrite each other.
 export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},getDuration=()=>null,getVersion=()=>null,now=Date.now}){
@@ -28,7 +29,8 @@ export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},ge
   if(current?.events.length&&Number.isFinite(seconds)){const duration=Math.max(current.duration,Math.round(seconds*1000));if(duration!==current.duration){current.duration=duration;persist(current);}}
   if(flushing||!api.ready)return;flushing=true;
   try{for(const item of jobs.values()){
-   if(!item.events.length||item.invalid||(item.savedCount===item.events.length&&item.savedFinal===item.final&&item.savedDuration===item.duration))continue;
+   if(item.invalid){onStatus('Rundeloggen er ufuldstændig. Behold spillets data og gem en kopi i Filer.');continue;}
+   if(!item.events.length||(item.savedCount===item.events.length&&item.savedFinal===item.final&&item.savedDuration===item.duration))continue;
    try{
     if(!item.ticket){
      if(item.ticketPromise)await item.ticketPromise;
@@ -39,12 +41,21 @@ export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},ge
     const count=item.events.length,final=item.final,duration=item.duration,events=item.events.map(e=>[...e]);
     const save=final?(item.gameOverAt&&now()-item.gameOverAt<60000&&api.gameOver?api.gameOver:api.submit):api.checkpoint;
     const score=await save(item.ticket.id,item.nickname,events,duration,{version:item.version??null,gameOver:Boolean(item.gameOverAt),...(item.recovery?{recovery:item.recovery}:{})});
+    const archived=store.get(FINISHED_PREFIX+item.key);
+    const archive=archived?JSON.parse(archived):null;
+    if(final&&archive&&score!==archive.round.score){
+     onStatus('Resultatet er ikke bekræftet. Den fulde kopi er beholdt på enheden. Gem en kopi i Filer.');
+     continue;
+    }
     item.savedCount=count;item.savedFinal=final;item.savedDuration=duration;
     onStatus(`Din score på ${new Intl.NumberFormat('da-DK').format(score)} er gemt!`);
     if(item.events.length===count&&item.final===final&&item.duration===duration){
      // A different tab may have appended a newer checkpoint to this journal.
      let stored=null;try{stored=fromStorage(JSON.parse(store.get(prefix+item.key)));}catch{}
-     if(!stored||(stored.events.length===count&&stored.final===final&&stored.duration===duration&&stored.ticket?.id===item.ticket.id))store.remove(prefix+item.key);
+     if(!stored||(stored.events.length===count&&stored.final===final&&stored.duration===duration&&stored.ticket?.id===item.ticket.id)){
+      store.remove(prefix+item.key);
+      if(final&&archive&&store.get(FINISHED_PREFIX+item.key)===archived)store.remove(FINISHED_PREFIX+item.key);
+     }
      if(item!==current)jobs.delete(item.key);
     }
     onSaved();

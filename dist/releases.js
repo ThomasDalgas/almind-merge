@@ -1,4 +1,6 @@
 export const RELEASES=[{
+ version:'1.5.3',date:'21. november 2026',changes:['Ved Game Over og Start forfra gemmes en fuld kopi af runden, indtil serveren har bekræftet den præcise slutscore.','Ventende afsluttede runder kan eksporteres til Filer under Afsluttede runder og sikkerhedskopier. Hvis der ikke er plads til kopien, stoppes afslutningen.']
+},{
  version:'1.5.2',date:'16. november 2026',changes:['Når du fortsætter en åben runde, vises dine point igen i Spiller nu, også når runden er mere end 24 timer gammel.']
 },{
  version:'1.5.1',date:'14. november 2026',changes:['Spillebanen, Score og Næste har nu samme blågrønne kant på telefon, tablet og computer. Der er mere luft mellem banen og felterne på touchskærme.','På telefonen er spillet rykket lidt ned, så Ryst og Fjern får mere plads under statuslinjen. Highscoren i pausen har fået mørkere tekst.','Når du stryger op og annullerer et drop, vises den røde pil lige over brikken, også når du bruger området under banen.']
