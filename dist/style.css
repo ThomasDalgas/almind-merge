@@ -550,3 +550,13 @@ body :is(.arena-wrap,.score-card,.next-card),body:not(.started) .arena-wrap{bord
 body .score-card,body .next-card,body.touch-device.playing :is(.score-card,.next-card){border-width:2px}
 body .arena-wrap:has(.removing){border-color:#ac583e}
 body.touch-device.playing .left-rail{margin-top:8px}
+
+#round-stats{width:min(92vw,460px);color:#143f50;background:#f7faef;border:2px solid #39757a;border-radius:20px}
+#round-stats dl{display:grid;grid-template-columns:1fr auto;gap:0;margin:16px 0}
+#round-stats dt,#round-stats dd{margin:0;padding:10px 0;border-bottom:1px solid #39757a30}
+#round-stats dd{font-weight:750;text-align:right;font-variant-numeric:tabular-nums}
+#round-stats-note{font-size:13px;line-height:1.5;color:#47636a}
+.round-stats-link{padding:4px 0;background:none;border:0;text-decoration:underline;font:inherit;font-size:12px;color:inherit;cursor:pointer}
+#last-round-summary{padding:14px;margin-bottom:16px;border:1px solid #80aca8;border-radius:12px}
+#last-round-summary span{display:block;margin-bottom:8px}
+#last-round-summary[hidden]{display:none}

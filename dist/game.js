@@ -1,12 +1,13 @@
-import {forStorage,fromStorage} from './journal-storage.js?v=1.4.0';
+import {forStorage,fromStorage} from './journal-storage.js?v=1.6.0';
 import {createPlayClock,formatPlayTime} from './play-time.js?v=resume1';
-import {preserveFinished,FINISHED_PREFIX} from './finished-rounds.js?v=1.5.3';
+import {installPauseGesture} from './pause-gesture.js?v=1.6.0';
+import {preserveFinished,FINISHED_PREFIX} from './finished-rounds.js?v=1.6.0';
 import {earnedPowers,createRewardNotices} from './reward-notices.js?v=gameover-notices-v1';
 import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.5.3';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.6.0';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,chainMultiplier,advanceDanger} from './rules.js?v=1.2.0';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
@@ -53,6 +54,8 @@ let assetsReady=false;
 let fireworks=[];
 let dangerProgress=0,availableSvendBonus=0;
 const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
+const SHAKE_DURATION=1.15,SHAKE_GAIN=1.15;
+let unlimitedPowers=false;
 let powers={shake:1,remove:1},rewardLevel=0,removing=false,shakeUntil=0,shakePulse=0;
 function syncPowers(){
  const earned=earnedPowers(rewardLevel,round.score);rewardLevel=earned.level;
@@ -61,26 +64,26 @@ function syncPowers(){
   const gifts=[];if(earned.remove)gifts.push(`+${earned.remove} Fjern`);if(earned.shake)gifts.push(`+${earned.shake} Ryst`);
   rewardNotices.push({kind:'power',text:`🎁 ${gifts.join(' og ')} optjent · ${numberFormat.format(round.score)} point`});
  }
- for(const kind of ["shake","remove"]){const button=$("#"+kind);button.querySelector("b").textContent=powers[kind];button.disabled=mode!=="playing"||powers[kind]<1||(kind==="shake"&&(time<shakeUntil||!bodies.length));}
+ for(const kind of ["shake","remove"]){const button=$("#"+kind);button.querySelector("b").textContent=unlimitedPowers?"∞":powers[kind];button.disabled=mode!=="playing"||(!unlimitedPowers&&powers[kind]<1)||(kind==="shake"&&(time<shakeUntil||!bodies.length));}
  $("#remove").setAttribute("aria-pressed",String(removing));canvas.classList.toggle("removing",removing);
 }
 function cancelRemove(){removing=false;clearAim();syncPowers();}
 function shake(){
- if(mode!=="playing"||powers.shake<1||time<shakeUntil||!bodies.length)return;
- cancelRemove();scoreEvent('s',0);powers.shake--;shakeUntil=time+.65;
+ if(mode!=="playing"||(!unlimitedPowers&&powers.shake<1)||time<shakeUntil||!bodies.length)return;
+ cancelRemove();scoreEvent('s',0);if(!unlimitedPowers)powers.shake--;shakeUntil=time+SHAKE_DURATION;
  shakePulse=0;shakeKick(1);
- $(".arena-wrap").animate([{translate:"0"},{translate:"-6px"},{translate:"6px"},{translate:"-5px"},{translate:"5px"},{translate:"-3px"},{translate:"0"}],{duration:600});syncPowers();saveRound();
+ $(".arena-wrap").animate([{translate:"0"},{translate:"-6px"},{translate:"6px"},{translate:"-5px"},{translate:"5px"},{translate:"-3px"},{translate:"0"}],{duration:1100});syncPowers();saveRound();
 }
 function shakeKick(direction){
- for(const b of bodies){if(!b.plugin.alive)continue;Matter.Sleeping.set(b,false);Body.setVelocity(b,{x:Math.max(-6.4,Math.min(6.4,b.velocity.x+direction*5.2)),y:Math.min(b.velocity.y,-.6)});Body.setAngularVelocity(b,Math.max(-.07,Math.min(.07,b.angularVelocity+direction*.035)));}
+ for(const b of bodies){if(!b.plugin.alive)continue;Matter.Sleeping.set(b,false);Body.setVelocity(b,{x:Math.max(-6.4*SHAKE_GAIN,Math.min(6.4*SHAKE_GAIN,b.velocity.x+direction*5.2*SHAKE_GAIN)),y:Math.min(b.velocity.y,-.6*SHAKE_GAIN)});Body.setAngularVelocity(b,Math.max(-.07*SHAKE_GAIN,Math.min(.07*SHAKE_GAIN,b.angularVelocity+direction*.035*SHAKE_GAIN)));}
 }
 function removeAt(x,y){
- if(!removing||mode!=="playing"||powers.remove<1)return false;
+ if(!removing||mode!=="playing"||(!unlimitedPowers&&powers.remove<1))return false;
  const body=[...bodies].reverse().find(b=>b.plugin.alive&&Matter.Query.point(b.parts.length>1?b.parts.slice(1):[b],{x,y}).length);if(!body)return false;
- scoreEvent('r',body.plugin.tier,body.plugin.chain);body.plugin.alive=false;Composite.remove(engine.world,body);bodies=bodies.filter(b=>b!==body);pending=pending.filter(pair=>!pair.includes(body));powers.remove--;
+ scoreEvent('r',body.plugin.tier,body.plugin.chain);body.plugin.alive=false;Composite.remove(engine.world,body);bodies=bodies.filter(b=>b!==body);pending=pending.filter(pair=>!pair.includes(body));if(!unlimitedPowers)powers.remove--;
  for(const b of bodies)Matter.Sleeping.set(b,false);burst(body.position.x,body.position.y,body.plugin.tier);cancelRemove();saveRound();return true;
 }
-$("#shake").onclick=shake;$("#remove").onclick=()=>{if(mode!=="playing"||powers.remove<1)return;removing=!removing;clearAim();syncPowers();if(removing)toast("Tryk på en brik for at fjerne den. Tryk Fjern igen for at annullere.");};
+$("#shake").onclick=shake;$("#remove").onclick=()=>{if(mode!=="playing"||(!unlimitedPowers&&powers.remove<1))return;removing=!removing;clearAim();syncPowers();if(removing)toast("Tryk på en brik for at fjerne den. Tryk Fjern igen for at annullere.");};
 let audioGeneration=0;
 let activeAudio=[];const audioBuffers=new Map();
 let bestStorageKey='merge-lab-best';
@@ -307,7 +310,7 @@ function captureRound(){
  try{
   const tiles=bodies.map(b=>({tier:b.plugin.tier,x:b.position.x,y:b.position.y,angle:b.angle,
    vx:Body.getVelocity(b).x,vy:Body.getVelocity(b).y,spin:Body.getAngularVelocity(b),age:b.plugin.age,danger:b.plugin.danger,chain:b.plugin.chain}));
-  return {round,time,elapsed:playSeconds(),aim,powers,rewardLevel,
+  return {unlimitedPowers,round,time,elapsed:playSeconds(),aim,powers,rewardLevel,
    shakeUntil,shakePulse,dangerProgress,tiles,journal:scoreSnapshot()};
  }catch{}
 }
@@ -412,7 +415,7 @@ function continueSaved(){
  if(!requirePlayerName(continueSaved))return;
  const s=readRound();if(!s){start();return;}
  activeSaveKey=saveKey();round=s.round;round.lastDrop??=-Infinity;
- time=s.time;lastSaveTime=time;aim=s.aim;powers=s.powers;rewardLevel=s.rewardLevel;
+ unlimitedPowers=s.unlimitedPowers===true;time=s.time;lastSaveTime=time;aim=s.aim;powers=s.powers;rewardLevel=s.rewardLevel;
  shakeUntil=s.shakeUntil;shakePulse=s.shakePulse;dangerProgress=s.dangerProgress;
  for(const t of s.tiles){
   const b=makeTileBody(t.tier,t.x,t.y);Body.setAngle(b,t.angle);
@@ -433,7 +436,7 @@ function start(){
   activeSaveKey=saveKey();scoreRoundStart(previousSeconds);flushScore();
   ensureAudio();if(audioCtx){recordedBuffer('assets/game-over-voice.m4a').catch(()=>{});recordedBuffer('assets/danger-riser.m4a').catch(()=>{});}
   document.body.classList.add('started');fireworks=[];dangerProgress=0;$('#game-over-logo').hidden=true;$('#overlay').classList.remove('game-over');
-  dropPreview=null;rewardNotices.clear();stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound(availableSvendBonus);powers={shake:1,remove:1};rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';phonePause(false);lockPlayScreen(true);showCopyOptions(false);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');saveRound();setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
+  dropPreview=null;rewardNotices.clear();stopSounds();Composite.remove(engine.world,bodies);Engine.clear(engine);bodies=[];pending=[];particles=[];floats=[];round=createRound(availableSvendBonus);powers={shake:1,remove:1};unlimitedPowers=false;resetPauseGesture();rewardLevel=0;removing=false;shakeUntil=0;time=0;aim=W/2;mode='playing';phonePause(false);lockPlayScreen(true);showCopyOptions(false);keys.clear();dragging=false;$('#overlay').hidden=true;$('#danger').hidden=true;$('#pause').disabled=false;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');saveRound();setStatus('Slip din første figur');ensureAudio();syncUI();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();
 }
 const phoneLayout=matchMedia('(max-width:600px) and (orientation:portrait)');
 const isPhone=()=>phoneLayout.matches&&document.body.classList.contains('touch-device');
@@ -453,11 +456,18 @@ function phonePause(show){
 phoneLayout.addEventListener('change',()=>phonePause(mode==='paused'));
 $('#phone-resume').onclick=()=>resume();$('#phone-rules').onclick=()=>openDialog('how');
 $('#phone-home').onclick=()=>$('.main-home').click();$('#phone-restart').onclick=()=>requestRestart();
+const resetPauseGesture=installPauseGesture([$('#overlay-title'),$('#phone-pause h2')],{
+ enabled:()=>mode==='paused'&&!document.querySelector('dialog[open]')&&!unlimitedPowers,
+ activate:()=>{
+  if(!scoreEvent('u',0))return;
+  unlimitedPowers=true;syncPowers();saveRound();
+ }
+});
 function pause(){if(mode!=='playing')return;playClock.pause();syncClock();mode='paused';saveRound();cancelRemove();lockPlayScreen(false);flushScore();refreshLeaderboard();keys.clear();dragging=false;stopSounds();$('#pause').textContent='▷';$('#pause').setAttribute('aria-label','Fortsæt spillet');setStatus('Tag dig god tid');showOverlay('Pause','','Spil videre','','');clearAim();phonePause(true);livePlayers.changed();}
-function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;playClock.resume();mode='playing';syncPowers();phonePause(false);lockPlayScreen(true);showCopyOptions(false);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();}
+function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;resetPauseGesture();playClock.resume();mode='playing';syncPowers();phonePause(false);lockPlayScreen(true);showCopyOptions(false);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();}
 function end(){if(mode==='over')return;if(!protectFinished(captureRound()))return;playClock.pause();syncClock();mode='over';try{localStorage.removeItem(activeSaveKey);}catch{}activeSaveKey=null;mobileDisplay.leave();fireworks=[];cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);$('#game-over-logo').hidden=false;$('#overlay').classList.add('game-over');gameOverSound();scoreRoundEnd(round,playSeconds());livePlayers.changed();}
 function step(dt){
-  if(mode!=='playing')return;time+=dt;if(shakeUntil&&time<shakeUntil){const pulse=Math.floor((time-(shakeUntil-.65))/.16);if(pulse>shakePulse){shakePulse=pulse;shakeKick(pulse%2?-1:1);}}if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
+  if(mode!=='playing')return;time+=dt;if(shakeUntil&&time<shakeUntil){const pulse=Math.floor((time-(shakeUntil-SHAKE_DURATION))/.16);if(pulse>shakePulse){shakePulse=pulse;shakeKick(pulse%2?-1:1);}}if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
   if(keys.has('ArrowLeft'))aim-=260*dt;if(keys.has('ArrowRight'))aim+=260*dt;
   aim=Math.max(LEFT,Math.min(RIGHT,aim));
   // Four small 240 Hz solves keep fast, heavy tiles from crossing thin silhouette parts.
@@ -610,4 +620,4 @@ $('#play').disabled=true;
 })();
 $('#load-retry').onclick=()=>location.reload();
 // Opt-in test interface: never present on the ordinary page.
-if(new URLSearchParams(location.search).get('test')==='1')window.__mergeTest={shake,removeAt,toggleRemove(){removing=!removing;syncPowers();},setScore(score){round.score=score;syncUI();},start,pause,resume,drop,step,spawn,processMerges,engine,refreshPhysics,get ready(){return assetsReady;},get state(){return {mode,dangerProgress,effects:{particles:particles.length,fireworks:fireworks.length,audio:activeAudio.length},powers:{...powers},removing,round:{...round},time,bodies:bodies.map(b=>({id:b.id,tier:b.plugin.tier,x:b.position.x,y:b.position.y,danger:b.plugin.danger})),best};},position(body,x,y){Body.setPosition(body,{x,y});},setAim(x){aim=x;},setDropTier(tier){round.current=tier;},advance(seconds){for(let i=0;i<seconds*60;i++)step(1/60);},end};
+if(new URLSearchParams(location.search).get('test')==='1')window.__mergeTest={shake,removeAt,toggleRemove(){removing=!removing;syncPowers();},setScore(score){round.score=score;syncUI();},start,pause,resume,drop,step,spawn,processMerges,engine,refreshPhysics,get ready(){return assetsReady;},get state(){return {mode,dangerProgress,effects:{particles:particles.length,fireworks:fireworks.length,audio:activeAudio.length},powers:{...powers},unlimitedPowers,shakeUntil,removing,round:{...round},time,bodies:bodies.map(b=>({id:b.id,tier:b.plugin.tier,x:b.position.x,y:b.position.y,danger:b.plugin.danger})),best};},position(body,x,y){Body.setPosition(body,{x,y});},setAim(x){aim=x;},setDropTier(tier){round.current=tier;},advance(seconds){for(let i=0;i<seconds*60;i++)step(1/60);},end};

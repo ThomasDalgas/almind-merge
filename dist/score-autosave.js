@@ -1,5 +1,5 @@
-import {FINISHED_PREFIX} from './finished-rounds.js?v=1.5.3';
-import {forStorage,fromStorage} from './journal-storage.js?v=1.4.0';
+import {FINISHED_PREFIX} from './finished-rounds.js?v=1.6.0';
+import {forStorage,fromStorage} from './journal-storage.js?v=1.6.0';
 // Persist each round independently so tabs and unfinished uploads cannot overwrite each other.
 export function createScoreAutosave({api,store,onStatus=()=>{},onSaved=()=>{},getDuration=()=>null,getVersion=()=>null,now=Date.now}){
  const prefix='almind-score-pending:',jobs=new Map();let current=null,flushing=false;

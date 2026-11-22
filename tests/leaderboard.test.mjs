@@ -24,6 +24,6 @@ test('Missing Game Over migration falls back to saving, but server failures stay
 });
 test('Leaderboard metadata falls back only when the new database function is missing',async()=>{
  const calls=[],store={get:()=>null,set:()=>{}};let code='PGRST202';const row={nickname:'Thomas',score:2,achieved_at:'2026-10-17T10:00:00Z'};
- const fetcher=async url=>{calls.push(url);return url.endsWith('am_leaderboard_v2')?{ok:false,json:async()=>({code,message:'test error'})}:{ok:true,json:async()=>[row]};};
+ const fetcher=async url=>{calls.push(url);return /am_leaderboard_v[23]$/.test(url)?{ok:false,json:async()=>({code,message:'test error'})}:{ok:true,json:async()=>[row]};};
  const api=createScoreApi({url:'https://test.example',key:'public'},{fetcher,store});assert.deepEqual(await api.list('all'),[row]);assert.ok(calls.at(-1).endsWith('am_leaderboard'));code='42501';const count=calls.length;await assert.rejects(api.list('all'),/test error/);assert.equal(calls.length,count+1);
 });

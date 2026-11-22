@@ -1,4 +1,4 @@
-import {forStorage} from './journal-storage.js?v=1.4.0';
+import {forStorage} from './journal-storage.js?v=1.6.0';
 export const FINISHED_PREFIX='almind-finished-round:';
 export function preserveFinished(storage,snapshot){
  if(!snapshot?.journal?.key)throw Error('Runden mangler en gemmelog');

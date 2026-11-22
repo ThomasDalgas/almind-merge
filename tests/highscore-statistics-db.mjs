@@ -1,0 +1,33 @@
+import fs from 'node:fs/promises';import assert from 'node:assert/strict';
+const {PGlite}=await import(process.env.PGLITE_MODULE);const db=new PGlite();
+await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key,email_confirmed_at timestamptz default now(),is_anonymous boolean default false);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;`);
+for(const f of (await fs.readdir(new URL('../supabase/migrations/',import.meta.url))).sort())await db.exec(await fs.readFile(new URL('../supabase/migrations/'+f,import.meta.url),'utf8'));
+const ids=Array.from({length:15},(_,i)=>'00000000-0000-4000-8000-'+String(i+1).padStart(12,'0'));
+const rounds=[];
+for(const [i,id] of ids.entries()){
+ await db.query('insert into auth.users(id) values($1)',[id]);
+ await db.query('insert into public.am_players(id,nickname,name_claimed) values($1,$2,true)',[id,'Player '+i]);
+ const log=i===1?null:{drops:10,merges:5,svend_pairs:2,shakes:3,removals:4,version:'private',secret:'not public'};
+ rounds.push((await db.query("insert into public.am_rounds(player_id,finished_at,saved_at,score,max_tier,duration_ms,round_log) values($1,now(),now(),$2,10,3000000000,$3) returning id",[id,1000-i,log])).rows[0].id);
+}
+await db.query('update public.am_rounds set hidden=true where id=$1',[rounds[12]]);
+await db.query('update public.am_rounds set finished_at=null where id=$1',[rounds[13]]);
+await db.query('update public.am_players set blocked=true where id=$1',[ids[14]]);
+const older=(await db.query("insert into public.am_rounds(player_id,finished_at,saved_at,score,max_tier) values($1,now()-interval '14 days',now()-interval '14 days',2000,10) returning id",[ids[0]])).rows[0].id;
+await db.exec('set role anon');
+const get=async(scope='week')=>(await db.query('select * from public.am_leaderboard_v3($1)',[scope])).rows;
+const week=await get();assert.equal(week.length,10);assert.equal(week[0].round_id,rounds[0]);
+assert.deepEqual(week[0].round_log,{actions:22,drops:10,merges:5,svend_pairs:2,shakes:3,removals:4,complete:true});
+assert.equal(Number(week[0].duration_ms),3000000000);assert.equal(week[1].round_log,null);
+assert.equal((await get('all'))[0].round_id,older);
+assert.ok(!week.some(x=>rounds.slice(10).includes(x.round_id)));
+await assert.rejects(db.query('select round_log from public.am_rounds'),/permission denied/);
+await assert.rejects(get('bad'),/Invalid scope/);
+await db.exec('reset role');
+await db.query("select set_config('request.jwt.claim.sub',$1,false)",[ids[11]]);await db.exec('set role authenticated');
+const own=await get();assert.equal(own.length,11);assert.equal(own.at(-1).round_id,rounds[11]);assert.equal(own.at(-1).is_me,true);
+await db.exec('reset role');
+await db.query("insert into public.am_round_recoveries(round_id,revision,cursor_at_approval,backup_at,previous_score,previous_log,snapshot) values($1,1,20000,now(),2,'{}','{}')",[rounds[0]]);
+await db.exec('set role anon');assert.equal((await get())[0].round_log.complete,false);
+console.log('PASS public top10 and own-only stats, finished/hidden/blocked filters, week/all, null historic logs, partial recovery, bigint duration, whitelist and table privacy');
+await db.close();

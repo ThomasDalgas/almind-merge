@@ -1,6 +1,7 @@
+import {summarizeRound,showRoundStats} from './round-stats.js?v=1.6.0';
 import {formatPlayTime} from './play-time.js?v=1.1.0';
 import {SCORE_CONFIG} from './score-config.js';
-import {createScoreAutosave} from './score-autosave.js?v=1.5.3';
+import {createScoreAutosave} from './score-autosave.js?v=1.6.0';
 const $=s=>document.querySelector(s),fmt=new Intl.NumberFormat('da-DK');
 const storage={get(k){try{return localStorage.getItem(k);}catch{return null;}},set(k,v){try{localStorage.setItem(k,v);}catch{}},remove(k){try{localStorage.removeItem(k);}catch{}},keys(){try{return Object.keys(localStorage);}catch{return [];}}};
 export function validNickname(value){return /^[\p{L}\p{N} _-]{2,20}$/u.test(value.trim());}
@@ -57,7 +58,7 @@ export function createScoreApi(config,{fetcher=fetch,store=storage}={}){
  return {ready,recovery:id=>rpc('am_round_recovery',{p_round:id}),backup:(id,revision,snapshot)=>rpc('am_put_round_backup',{p_round:id,p_revision:revision,p_snapshot:snapshot}),gameOver:(...args)=>save('gameover',...args),gameRules:()=>rpc('am_game_rules',{},false),createCode:()=>rpc('am_create_player_code'),useCode:(name,code)=>rpc('am_use_player_code',{p_nickname:name,p_code:code}),profile:()=>rpc('am_player_profile'),claim:name=>rpc('am_claim_name',{p_nickname:name}),live:(id,nickname,score,tier,active)=>rpc('am_live_update',{p_round:id,p_nickname:nickname,p_score:score,p_max_tier:tier,p_active:active}),liveList:()=>rpc('am_live_snapshot',{},false),start:()=>rpc('am_start_round'),checkpoint:(...args)=>save('checkpoint',...args),submit:(...args)=>save('submit',...args),list:async scope=>{
   // Public browsing doesn't create an account; use a stored identity for your rank.
   let hasSession=Boolean(session);try{hasSession ||= Boolean(JSON.parse(store.get(sessionKey))?.refresh_token);}catch{}
-  try{return await rpc('am_leaderboard_v2',{p_scope:scope},hasSession);}catch(error){if(error.code!=='PGRST202')throw error;return rpc('am_leaderboard',{p_scope:scope},hasSession);}
+  try{return await rpc('am_leaderboard_v3',{p_scope:scope},hasSession);}catch(error){if(error.code!=='PGRST202')throw error;try{return await rpc('am_leaderboard_v2',{p_scope:scope},hasSession);}catch(older){if(older.code!=='PGRST202')throw older;return rpc('am_leaderboard',{p_scope:scope},hasSession);}}
  }};
 }
 export const scoreApi=createScoreApi(SCORE_CONFIG);const api=scoreApi;let scope='week',loadVersion=0;
@@ -74,6 +75,8 @@ function renderRows(rows){
   date.textContent=stamp&&!Number.isNaN(stamp.getTime())?new Intl.DateTimeFormat('da-DK',{dateStyle:'short',timeStyle:'short',timeZone:'Europe/Copenhagen'}).format(stamp):'Dato ikke registreret';
   duration.textContent=row.duration_ms==null?'Spilletid ikke registreret':`Spilletid ${formatPlayTime(row.duration_ms/1000)}`;
   person.append(date,duration);
+  const details=document.createElement('button');details.type='button';details.className='round-stats-link';details.textContent='Se statistik';
+  details.onclick=()=>showRoundStats(row);person.append(details);
   const points=document.createElement('b');points.textContent=fmt.format(row.score);li.append(rank,person,points);list.append(li);
  }
 }
@@ -84,14 +87,22 @@ export async function refreshLeaderboard(){
 }
 let roundTimeSource=null;
 export const setRoundTimeSource=source=>{roundTimeSource=source;};
-const autosave=createScoreAutosave({getVersion:()=>'1.5.3',api,store:storage,getDuration:()=>roundTimeSource?.(),onStatus:message,onSaved:()=>{if(!document.body.classList.contains('playing'))refreshLeaderboard();}});
+const autosave=createScoreAutosave({getVersion:()=>'1.6.0',api,store:storage,getDuration:()=>roundTimeSource?.(),onStatus:message,onSaved:()=>{if(!document.body.classList.contains('playing'))refreshLeaderboard();}});
 export const scoreSnapshot=()=>autosave.snapshot();
 export const restoreScore=item=>autosave.restore(item);
 export function scoreRoundStart(previousSeconds){
- autosave.start(nickname,previousSeconds);$('#score-result-open').hidden=true;message('Din rekord gemmes automatisk undervejs.');
+ autosave.start(nickname,previousSeconds);$('#score-result-open').hidden=true;$('#round-stats-open').hidden=true;message('Din rekord gemmes automatisk undervejs.');
 }
 export const scoreEvent=(...args)=>autosave.event(...args);
-export function scoreRoundEnd(round,time){autosave.end(time);$('#score-result-open').hidden=false;}
+let lastRoundStats=null;
+export function scoreRoundEnd(round,time){
+ lastRoundStats=summarizeRound(round,autosave.snapshot(),Math.round(time*1000));
+ storage.set('almind-last-stats:'+nickname,JSON.stringify(lastRoundStats));
+ $('#last-round-summary').hidden=false;$('#round-stats-open').hidden=false;
+ autosave.end(time);$('#score-result-open').hidden=false;
+}
+function openLastRoundStats(){if(lastRoundStats)showRoundStats(lastRoundStats,true);}
+
 export const flushScore=()=>autosave.flush();
 let beginAfterName=null,nameChecked=false,nameChecking=false;
 function openName(begin,error=''){
@@ -184,6 +195,9 @@ export function initLeaderboard(){
  flushScore();
  for(const button of document.querySelectorAll('[data-score-scope]'))button.onclick=()=>{scope=button.dataset.scoreScope;for(const b of document.querySelectorAll('[data-score-scope]'))b.setAttribute('aria-pressed',String(b===button));refreshLeaderboard();};
  $('#highscore-refresh').onclick=refreshLeaderboard;
+ try{lastRoundStats=JSON.parse(storage.get('almind-last-stats:'+nickname));}catch{}
+ $('#last-round-summary').hidden=!lastRoundStats;
+ $('#round-stats-open').onclick=openLastRoundStats;$('#last-round-stats').onclick=openLastRoundStats;
  $('#score-result-open').onclick=()=>{$('#highscores').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});$('#score-nickname').focus({preventScroll:true});};
  let boardVisible=false;
  const refreshVisible=()=>{

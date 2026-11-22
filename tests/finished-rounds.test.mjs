@@ -12,3 +12,9 @@ test('full or silently failing storage cannot authorize destructive transition',
  assert.throws(()=>preserveFinished({setItem(){throw Error('quota')},getItem(){}},snapshot));
  assert.throws(()=>preserveFinished({setItem(){},getItem(){return null}},snapshot));
 });
+
+test('long journals preserve hidden power activation through compact storage',async()=>{
+ const {forStorage,fromStorage}=await import('../dist/journal-storage.js');
+ const events=Array.from({length:5000},(_,i)=>[i===100?'u':'d',0,i,i,0,0]);
+ assert.deepEqual(fromStorage(forStorage({events})).events,events);
+});

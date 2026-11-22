@@ -1,6 +1,6 @@
 // Encode long journals for browser storage only. RPCs still receive the original
 // numbered events, including every chain parent. Sealed blocks never change.
-const kinds='dmsrb',block=512,cache=new WeakMap();
+const kinds='dmsrbu',block=512,cache=new WeakMap();
 function pack(events,start){
  const bytes=[];let wall=0,sim=0;
  const put=n=>{while(n>=128){bytes.push(128+n%128);n=Math.floor(n/128);}bytes.push(n);};
