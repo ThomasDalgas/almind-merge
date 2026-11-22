@@ -1,13 +1,14 @@
-import {forStorage,fromStorage} from './journal-storage.js?v=1.6.0';
+import {shakeVelocity} from './shake-motion.js?v=1.6.1';
+import {forStorage,fromStorage} from './journal-storage.js?v=1.6.1';
 import {createPlayClock,formatPlayTime} from './play-time.js?v=resume1';
-import {installPauseGesture} from './pause-gesture.js?v=1.6.0';
-import {preserveFinished,FINISHED_PREFIX} from './finished-rounds.js?v=1.6.0';
+import {installPauseGesture} from './pause-gesture.js?v=1.6.1';
+import {preserveFinished,FINISHED_PREFIX} from './finished-rounds.js?v=1.6.1';
 import {earnedPowers,createRewardNotices} from './reward-notices.js?v=gameover-notices-v1';
 import {createDangerAudio} from './danger-audio.js?v=riser-mix-v2';
 import {findBallEscape} from './ball-collision.js?v=flow-v1';
 import {createLivePlayers,renderLivePlayers,createLiveNotices} from './live-players.js?v=1.1.3';
 import {initMobileDisplay} from './mobile-display.js?v=mobile-screen-v1';
-import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.6.0';
+import {initLeaderboard,refreshLeaderboard,requirePlayerName,flushScore,scoreRoundStart,scoreSnapshot,restoreScore,scoreEvent as recordScoreEvent,setRoundTimeSource,scoreRoundEnd,scoreApi,liveRoundTicket,liveNickname} from './leaderboard.js?v=1.6.1';
 import {VALUES,CLEAR_PAIR,SVEND_BONUS,TOP_WAIT,DROP_DELAY,createRound,dropRound,mergeRound,chainMultiplier,advanceDanger} from './rules.js?v=1.2.0';
 import {tiles,drawTile,tileOutline,tileRadius,preloadImages,tileSource} from './theme.js?v=loading-preview-v1';
 const $=s=>document.querySelector(s);
@@ -71,11 +72,16 @@ function cancelRemove(){removing=false;clearAim();syncPowers();}
 function shake(){
  if(mode!=="playing"||(!unlimitedPowers&&powers.shake<1)||time<shakeUntil||!bodies.length)return;
  cancelRemove();scoreEvent('s',0);if(!unlimitedPowers)powers.shake--;shakeUntil=time+SHAKE_DURATION;
- shakePulse=0;shakeKick(1);
- $(".arena-wrap").animate([{translate:"0"},{translate:"-6px"},{translate:"6px"},{translate:"-5px"},{translate:"5px"},{translate:"-3px"},{translate:"0"}],{duration:1100});syncPowers();saveRound();
+ shakePulse=0;shakeKick(0);
+ $(".arena-wrap").animate([{translate:"0 0"},{translate:"0 -5px"},{translate:"4px -4px"},{translate:"6px 0"},{translate:"4px 4px"},{translate:"0 5px"},{translate:"-4px 4px"},{translate:"-6px 0"},{translate:"-4px -4px"},{translate:"0 0"}],{duration:1100});syncPowers();saveRound();
 }
-function shakeKick(direction){
- for(const b of bodies){if(!b.plugin.alive)continue;Matter.Sleeping.set(b,false);Body.setVelocity(b,{x:Math.max(-6.4*SHAKE_GAIN,Math.min(6.4*SHAKE_GAIN,b.velocity.x+direction*5.2*SHAKE_GAIN)),y:Math.min(b.velocity.y,-.6*SHAKE_GAIN)});Body.setAngularVelocity(b,Math.max(-.07*SHAKE_GAIN,Math.min(.07*SHAKE_GAIN,b.angularVelocity+direction*.035*SHAKE_GAIN)));}
+function shakeKick(pulse){
+ for(const b of bodies){
+  if(!b.plugin.alive)continue;
+  Matter.Sleeping.set(b,false);
+  Body.setVelocity(b,shakeVelocity(b.velocity,pulse,b.bounds.max.y,FLOOR,SHAKE_GAIN));
+  Body.setAngularVelocity(b,Math.max(-.07*SHAKE_GAIN,Math.min(.07*SHAKE_GAIN,b.angularVelocity+Math.cos(-Math.PI/2+pulse*Math.PI/4)*.035*SHAKE_GAIN)));
+ }
 }
 function removeAt(x,y){
  if(!removing||mode!=="playing"||(!unlimitedPowers&&powers.remove<1))return false;
@@ -467,7 +473,7 @@ function pause(){if(mode!=='playing')return;playClock.pause();syncClock();mode='
 function resume(){if(mode!=='paused'||document.querySelector('dialog[open]'))return;resetPauseGesture();playClock.resume();mode='playing';syncPowers();phonePause(false);lockPlayScreen(true);showCopyOptions(false);$('#overlay').hidden=true;$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Sæt spil på pause');setStatus('Find en makker. Skab noget større.');ensureAudio();canvas.focus({preventScroll:true});mobileDisplay.enter();livePlayers.changed();}
 function end(){if(mode==='over')return;if(!protectFinished(captureRound()))return;playClock.pause();syncClock();mode='over';try{localStorage.removeItem(activeSaveKey);}catch{}activeSaveKey=null;mobileDisplay.leave();fireworks=[];cancelRemove();lockPlayScreen(false);stopSounds();keys.clear();$('#pause').disabled=true;$('#danger').hidden=true;setStatus('En fin lille samling');showOverlay('',`Du samlede ${numberFormat.format(round.score)} point og nåede ${tiles[round.maxTier].name}.`,'Prøv igen ↗','RUNDE SLUT',`Din rekord: ${numberFormat.format(best)} point`);$('#game-over-logo').hidden=false;$('#overlay').classList.add('game-over');gameOverSound();scoreRoundEnd(round,playSeconds());livePlayers.changed();}
 function step(dt){
-  if(mode!=='playing')return;time+=dt;if(shakeUntil&&time<shakeUntil){const pulse=Math.floor((time-(shakeUntil-SHAKE_DURATION))/.16);if(pulse>shakePulse){shakePulse=pulse;shakeKick(pulse%2?-1:1);}}if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
+  if(mode!=='playing')return;time+=dt;if(shakeUntil&&time<shakeUntil){const pulse=Math.floor((time-(shakeUntil-SHAKE_DURATION))/.16);if(pulse>shakePulse){shakePulse=pulse;shakeKick(pulse);}}if(shakeUntil&&time>=shakeUntil){shakeUntil=0;syncPowers();}
   if(keys.has('ArrowLeft'))aim-=260*dt;if(keys.has('ArrowRight'))aim+=260*dt;
   aim=Math.max(LEFT,Math.min(RIGHT,aim));
   // Four small 240 Hz solves keep fast, heavy tiles from crossing thin silhouette parts.
